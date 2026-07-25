@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import api from "@/lib/api";
 
 export default function RegisterPage() {
@@ -41,69 +42,175 @@ export default function RegisterPage() {
     }
 
     return (
-        <main className="flex min-h-screen items-center justify-center p-6">
-            <form
-                onSubmit={handleSubmit}
-                className="w-full max-w-md space-y-4 rounded-lg border p-8 shadow-sm"
-            >
-                <h1 className="text-2xl font-bold text-blue-600">Create your account</h1>
+        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-4 py-10">
+            <div 
+                className="absolute inset-0 bg-cover bg-center"
+                style={{
+                    backgroundImage:
+                        "url('https://images.pexels.com/photos/5452222/pexels-photo-5452222.jpeg?auto=compress&cs=tinysrgb&w=2400')",
+                }}
+            />
+            <div className="absolute inset-0 bg-linear-to-br from-black/85 via-emerald-950/75 to-black/90"/>
 
-                {error && (
-                    <p className="rounded bg-red-50 p-2 text-sm text-red-600">{error}</p>
-                )}
+            <div className="pointer-events-none absolute -top-40 -left-40 h-128 w-lg rounded-full bg-emerald-600/25 blur-[120px]"/>
+            <div className="pointer-events-none absolute -bottom-40 -right-20 h-128 w-lg rounded-full bg-teal-500/20 blur-[120px]"/>
 
-                <div>
-                    <label className="block text-sm font-medium">Full Name</label>
-                    <input
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        required
-                        className="mt-1 w-full rounded border p-2"
-                    />
+            <div className="relative z-10 flex w-full max-w-5xl items-center justify-between gap-16">
+                <div className="hidden max-w-md flex-col gap-6 text-white lg:flex">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/20 backdrop-blur-md">
+                          <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-6 w-6"
+                          >
+                             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>  
+                          </svg>
+                        </span>
+                        <span className="text-xl font-semibold tracking-tight">
+                            HealthLink Kenya
+                        </span>
+                    </div>
+
+                    <h1 className="text-5xl font-bold leading-[1.1] tracking-tight">
+                        Join{" "}
+                        <span className="bg-linear-to-r from-emerald-300 to-teal-400 bg-clip-text text-transparent">
+                            HealthLink
+                        </span>{" "}
+                        today.
+                    </h1>
+
+                    <p className="max-w-sm text-base leading-relaxed text-white/60">
+                    Create your account to book verfied doctors, manage your
+                    appointments, and stay on top of your health across Kenya.
+                    </p>
+
+                    <div className="mt-4 flex gap-8 text-sm text-white/50">
+                        <div>
+                            <p className="text-2xl font-semibold text-white">500+</p>
+                            <p>Verified doctors</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-semibold text-white">47</p>
+                            <p>Counties covered</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-semibold text-white">24/7</p>
+                            <p>Support</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-medium">Email</label>
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        className="mt-1 w-full rounded border p-2"
-                    />
-                </div>
+                <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/7 p-8 shadow-2xl backdrop-blur-2xl">
+                    <div className="mb-6 flex items-center gap-2 lg:hidden">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-white ring-1 ring-white/20">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-5 w-5"                       
+                            >
+                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                            </svg>
+                        </span>
+                        <span className="font-semibold text-white">HealthLink</span>
+                    </div>
 
-                <div>
-                    <label className="block text-sm font-medium">Phone</label>
-                    <input
-                        type="text"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        required
-                        className="mt-1 w-full rounded border p-2"
-                    />
-                </div>
+                    <h2 className="text-2xl font-semibold text-white">
+                        Create your account
+                    </h2>
+                    <p className="mt-1 text-sm text-white/50">
+                        Get started with HealthLink Kenya
+                    </p>
 
-                <div>
-                    <label className="block text-sm font-medium">Password</label>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="mt-1 w-full rounded border p-2"
-                    />
-                </div>
+                    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                        {error && (
+                            <p className="rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-300">
+                                {error}
+                            </p>
+                        )}
 
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full rounded bg-blue-600 p-2 text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                    {loading ? "Creating account..." : "Register"}
-                </button>
-            </form>
-        </main>
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-white/70">
+                                Full Name
+                            </label>
+                            <input 
+                                type="text"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                required
+                                className="w-full rounded-lg border border-white/15 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-emerald-400/60 focus:bg-white/10 focus:ring-2 focus:ring-emerald-400/20"
+                           />
+                        </div>
+
+                        <div>
+                            <label className="mb-1.5 block text-sm font-medium text-white/70">
+                                Email
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                                className="w-full rounded-lg border border-white/15 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-emerald-400/60 focus:bg-white/10 focus:ring-2 focus:ring-emerald-400/20"
+                            />    
+                        </div>
+
+                        <div>
+                             <label className="mb-1.5 block text-sm font-medium text-white/70">
+                                Phone
+                            </label>
+                            <input
+                                type="text"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                required
+                                className="w-full rounded-lg border border-white/15 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-emerald-400/60 focus:bg-white/10 focus:ring-2 focus:ring-emerald-400/20"
+                            />
+                        </div>
+
+                        <div>
+                             <label className="mb-1.5 block text-sm font-medium text-white/70">
+                                Password
+                            </label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                className="w-full rounded-lg border border-white/15 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-white/30 outline-none transition focus:border-emerald-400/60 focus:bg-white/10 focus:ring-2 focus:ring-emerald-400/20"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full rounded-lg bg-linear-to-r from-emerald-500 to-teal-400 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40 disabled:opacity-50"
+                        >
+                            {loading ? "Creating account..." : "Create Account"}
+                        </button>
+
+                        <p className="pt-1 text-center text-sm text-white/50">
+                            Already have an account?{" "}
+                            <Link
+                                href="/login"
+                                className="font-medium text-emerald-300 hover:text-emerald-200"
+                            >
+                                Log in
+                            </Link>
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </main>          
     );
 }
