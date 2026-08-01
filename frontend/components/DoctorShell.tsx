@@ -5,18 +5,13 @@ import type { ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
-import { useAppointments, isUpcoming, formatApptDateTime } from "@/lib/useAppointments";
+import { HomeIcon, CalendarIcon, UserIcon } from "@/components/DashboardShell";
+import type { AuthInfo } from "@/components/DashboardShell";
+import { useDoctorProfile } from "@/lib/Usedoctorprofile";
+import { useDoctorAppointments } from "@/lib/Usedoctorappointments";
+import { formatApptDateTime } from "@/lib/useAppointments";
 
 const display = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"] });
-
-export interface AuthInfo {
-    email: string;
-    role: string;
-}
-
-function homeRouteForRole(role: string): string {
-    return role === "DOCTOR" ? "/doctor/dashboard" : "/dashboard";
-}
 
 function IconBase({ children, className }: { children: ReactNode; className?: string }) {
     return (
@@ -35,30 +30,6 @@ function IconBase({ children, className }: { children: ReactNode; className?: st
     );
 }
 
-export const HomeIcon = (p: { className?: string }) => (
-    <IconBase className={p.className}>
-        <path d="M3 10.5 12 3l9 7.5" />
-        <path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" />
-    </IconBase>
-);
-export const SearchIcon = (p: { className?: string }) => (
-    <IconBase className={p.className}>
-        <circle cx="11" cy="11" r="8" />
-        <path d="m21 21-4.3-4.3" />
-    </IconBase>
-);
-export const CalendarIcon = (p: { className?: string }) => (
-    <IconBase className={p.className}>
-        <rect x="3" y="4" width="18" height="18" rx="2" />
-        <path d="M16 2v4M8 2v4M3 10h18" />
-    </IconBase>
-);
-export const UserIcon = (p: { className?: string }) => (
-    <IconBase className={p.className}>
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </IconBase>
-);
 const BellIcon = (p: { className?: string }) => (
     <IconBase className={p.className}>
         <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -76,91 +47,28 @@ const XIcon = (p: { className?: string }) => (
     </IconBase>
 );
 
-const PATIENT_NAV = [
-    { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
-    { label: "Find a Doctor", href: "/doctors", icon: SearchIcon },
-    { label: "My Appointments", href: "/appointments", icon: CalendarIcon },
-    { label: "My Profile", href: "/profile", icon: UserIcon },
+const DOCTOR_NAV = [
+    { label: "Dashboard", href: "/doctor/dashboard", icon: HomeIcon },
+    { label: "My Appointments", href: "/doctor/appointments", icon: CalendarIcon },
+    { label: "My Profile", href: "/doctor/profile", icon: UserIcon },
 ];
 
-/**
- * Guards a page behind login, and optionally behind a specific role.
- * - No token -> redirect to /login
- * - Token present but role doesn't match expectedRole -> redirect to that role's home route
- * - Otherwise returns the auth info
- */
-export function useAuthGuard(expectedRole?: string): AuthInfo | null {
-    const router = useRouter();
-    const [auth, setAuth] = useState<AuthInfo | null>(null);
-
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-            router.push("/login");
-            return;
-        }
-
-        const role = localStorage.getItem("role") || "";
-        const email = localStorage.getItem("email") || "";
-
-        if (expectedRole && role !== expectedRole) {
-            router.push(homeRouteForRole(role));
-            return;
-        }
-
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- reading auth from localStorage on mount is a valid one-time sync
-        setAuth({ email, role });
-    }, [router, expectedRole]);
-
-    return auth;
-}
-
-export function DashboardSkeleton() {
-    return (
-        <div className="flex min-h-screen bg-gray-50">
-            <div className="hidden w-64 flex-col border-r bg-white p-4 lg:flex">
-                <div className="h-9 w-9 animate-pulse rounded-lg bg-gray-200" />
-                <div className="mt-8 space-y-2">
-                    {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="h-9 animate-pulse rounded-lg bg-gray-100" />
-                    ))}
-                </div>
-            </div>
-            <div className="flex-1 p-6">
-                <div className="h-44 w-full animate-pulse rounded-2xl bg-gray-200" />
-                <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                    {[0, 1, 2].map((i) => (
-                        <div key={i} className="h-28 animate-pulse rounded-xl bg-gray-100" />
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-interface DashboardShellProps {
+interface DoctorShellProps {
     auth: AuthInfo;
     title: string;
-    searchPlaceholder?: string;
-    onSearchChange?: (value: string) => void;
     children: ReactNode;
 }
 
-export default function DashboardShell({
-    auth,
-    title,
-    searchPlaceholder = "Search doctors, appointments…",
-    onSearchChange,
-    children,
-}: DashboardShellProps) {
+export default function DoctorShell({ auth, title, children }: DoctorShellProps) {
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const { appointments } = useAppointments(auth.email);
-    const upcoming = appointments
-        .filter(isUpcoming)
+    const { doctor } = useDoctorProfile(auth.email);
+    const { appointments } = useDoctorAppointments(doctor?.id ?? null);
+
+    const pending = appointments
+        .filter((a) => a.status?.toUpperCase() === "PENDING")
         .sort(
             (a, b) =>
                 new Date(a.appointmentDateTime).getTime() -
@@ -187,7 +95,7 @@ export default function DashboardShell({
         router.push("/login");
     }
 
-    const firstName = auth.email.split("@")[0];
+    const firstName = (doctor?.fullName || auth.email.split("@")[0]).replace(/^Dr\.?\s*/i, "");
     const initial = firstName.charAt(0).toUpperCase();
 
     return (
@@ -234,8 +142,14 @@ export default function DashboardShell({
                     </button>
                 </div>
 
+                <div className="mx-3 mb-2 rounded-lg bg-white/5 px-3 py-1.5">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-emerald-300">
+                        Doctor Portal
+                    </p>
+                </div>
+
                 <nav className="flex-1 space-y-1 px-3">
-                    {PATIENT_NAV.map((item) => {
+                    {DOCTOR_NAV.map((item) => {
                         const Icon = item.icon;
                         const active = pathname === item.href;
                         return (
@@ -262,7 +176,9 @@ export default function DashboardShell({
                             {initial}
                         </span>
                         <div className="min-w-0">
-                            <p className="truncate text-sm font-medium capitalize text-white">{firstName}</p>
+                            <p className="truncate text-sm font-medium text-white">
+                                {doctor?.fullName || firstName}
+                            </p>
                             <p className="truncate text-xs text-teal-200">{auth.email}</p>
                         </div>
                     </div>
@@ -291,16 +207,6 @@ export default function DashboardShell({
                     </div>
 
                     <div className="flex flex-1 items-center justify-end gap-3">
-                        <label className="relative hidden max-w-xs flex-1 sm:block">
-                            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder={searchPlaceholder}
-                                onChange={(e) => onSearchChange?.(e.target.value)}
-                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                            />
-                        </label>
-
                         <div className="relative" ref={notifRef}>
                             <button
                                 onClick={() => setNotifOpen((v) => !v)}
@@ -308,42 +214,44 @@ export default function DashboardShell({
                                 aria-label="Notifications"
                             >
                                 <BellIcon className="h-5 w-5" />
-                                {upcoming.length > 0 && (
-                                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                {pending.length > 0 && (
+                                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
                                 )}
                             </button>
 
                             {notifOpen && (
                                 <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-100 bg-white shadow-lg">
                                     <div className="border-b border-gray-100 px-4 py-3">
-                                        <p className="text-sm font-semibold text-gray-900">Notifications</p>
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            Pending Requests
+                                        </p>
                                     </div>
                                     <div className="max-h-80 overflow-y-auto">
-                                        {upcoming.length === 0 ? (
+                                        {pending.length === 0 ? (
                                             <p className="px-4 py-6 text-center text-sm text-gray-400">
-                                                No upcoming appointments
+                                                No pending requests
                                             </p>
                                         ) : (
-                                            upcoming.slice(0, 5).map((a) => (
+                                            pending.slice(0, 5).map((a) => (
                                                 <div
                                                     key={a.id}
                                                     className="border-b border-gray-50 px-4 py-3 last:border-b-0 hover:bg-gray-50"
                                                 >
                                                     <p className="text-sm font-medium text-gray-900">
-                                                        {a.doctorName}
+                                                        {a.patientName}
                                                     </p>
                                                     <p className="mt-0.5 text-xs text-gray-500">
                                                         {formatApptDateTime(a.appointmentDateTime)}
                                                     </p>
-                                                    <span className="mt-1.5 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                                                        {a.status}
+                                                    <span className="mt-1.5 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                                                        Awaiting confirmation
                                                     </span>
                                                 </div>
                                             ))
                                         )}
                                     </div>
                                     <Link
-                                        href="/appointments"
+                                        href="/doctor/appointments"
                                         onClick={() => setNotifOpen(false)}
                                         className="block px-4 py-2.5 text-center text-xs font-medium text-emerald-600 hover:bg-gray-50"
                                     >

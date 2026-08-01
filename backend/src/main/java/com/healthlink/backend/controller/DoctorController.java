@@ -27,6 +27,13 @@ public class DoctorController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<Doctor> getDoctorByUserId(@PathVariable String userId) {
+        return doctorService.getDoctorByUserId(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping
     public ResponseEntity<List<Doctor>> getAllDoctors() {
         return ResponseEntity.ok(doctorService.getAllDoctors());

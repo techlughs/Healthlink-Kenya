@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuthGuard, DashboardSkeleton } from "@/components/DashboardShell";
 import DashboardShell from "@/components/DashboardShell";
+import BookAppointmentModal from "@/components/BookAppointmentModal";
 import api from "@/lib/api";
 import type { Doctor } from "@/types";
 
@@ -14,6 +15,8 @@ export default function DoctorsPage() {
     const [loadError, setLoadError] = useState("");
     const [query, setQuery] = useState("");
     const [activeSpecialty, setActiveSpecialty] = useState("All");
+    const [bookingDoctor, setBookingDoctor] = useState<Doctor | null>(null);
+    const [bookedDoctorName, setBookedDoctorName] = useState("");
 
     useEffect(() => {
         if (!auth) return;
@@ -74,6 +77,14 @@ export default function DoctorsPage() {
         return <DashboardSkeleton />;
     }
 
+    // The backend links appointments to a real User document ID, not just an
+    // email. For now we don't yet store the logged-in user's Mongo ID on the
+    // frontend (only email/role), so we pass the email as a stand-in patient
+    // identifier. This gets tightened up once the /api/auth/login response
+    // includes the actual user ID.
+    const patientId = auth.email;
+    const patientName = auth.email.split("@")[0];
+
     return (
         <DashboardShell
             auth={auth}
@@ -116,6 +127,35 @@ export default function DoctorsPage() {
                     </div>
                 </div>
             </div>
+
+            {bookedDoctorName && (
+                <div className="mt-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-5 w-5 shrink-0 text-emerald-600"
+                    >
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <path d="m22 4-10 10-3-3" />
+                    </svg>
+                    <p className="text-sm font-medium text-emerald-800">
+                        Appointment requested with {bookedDoctorName}. We&apos;ll notify
+                        you once it&apos;s confirmed.
+                    </p>
+                    <button
+                        onClick={() => setBookedDoctorName("")}
+                        className="ml-auto text-emerald-600 hover:text-emerald-800"
+                        aria-label="Dismiss"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {!loading && specialties.length > 1 && (
                 <div className="mt-6 flex flex-wrap gap-2">
@@ -164,15 +204,38 @@ export default function DoctorsPage() {
             {!loading && !loadError && filteredDoctors.length > 0 && (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {filteredDoctors.map((doctor) => (
-                        <DoctorCard key={doctor.id} doctor={doctor} />
+                        <DoctorCard
+                            key={doctor.id}
+                            doctor={doctor}
+                            onBook={() => setBookingDoctor(doctor)}
+                        />
                     ))}
                 </div>
+            )}
+
+            {bookingDoctor && (
+                <BookAppointmentModal
+                    doctor={bookingDoctor}
+                    patientId={patientId}
+                    patientName={patientName}
+                    onClose={() => setBookingDoctor(null)}
+                    onBooked={() => {
+                        setBookedDoctorName(bookingDoctor.fullName);
+                        setBookingDoctor(null);
+                    }}
+                />
             )}
         </DashboardShell>
     );
 }
 
-function DoctorCard({ doctor }: { doctor: Doctor }) {
+function DoctorCard({
+    doctor,
+    onBook,
+}: {
+    doctor: Doctor;
+    onBook: () => void;
+}) {
     const initials = doctor.fullName
         .split(" ")
         .map((part) => part.charAt(0))
@@ -269,7 +332,10 @@ function DoctorCard({ doctor }: { doctor: Doctor }) {
                             KSh {doctor.consultationFee.toLocaleString()}
                         </p>
                     </div>
-                    <button className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 transition group-hover:bg-emerald-700">
+                    <button
+                        onClick={onBook}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 transition group-hover:bg-emerald-700"
+                    >
                         Book Appointment
                     </button>
                 </div>

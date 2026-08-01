@@ -27,6 +27,13 @@ public ResponseEntity<User> getUserById(@PathVariable String id) {
             .orElse(ResponseEntity.notFound().build());
 }
 
+@GetMapping("/email/{email}")
+public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
+    return userService.getUserByEmail(email)
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+}
+
 @GetMapping
 public ResponseEntity<List<User>> getAllUsers() {
     return ResponseEntity.ok(userService.getAllUsers());

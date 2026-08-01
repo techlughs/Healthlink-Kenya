@@ -21,6 +21,10 @@ public class DoctorService {
         return doctorRepository.findById(id);
     }
 
+    public Optional<Doctor> getDoctorByUserId(String userId) {
+        return doctorRepository.findByUserId(userId);
+    }
+
     public List<Doctor> getAllDoctors() {
         return doctorRepository.findAll();
     }
@@ -43,6 +47,7 @@ public class DoctorService {
 
     public Doctor updateDoctor(String id, Doctor updatedDoctor) {
         return doctorRepository.findById(id).map(existingDoctor -> {
+            existingDoctor.setUserId(updatedDoctor.getUserId());
             existingDoctor.setFullName(updatedDoctor.getFullName());
             existingDoctor.setEmail(updatedDoctor.getEmail());
             existingDoctor.setPhone(updatedDoctor.getPhone());
@@ -61,4 +66,4 @@ public class DoctorService {
     public void deleteDoctor(String id) {
         doctorRepository.deleteById(id);
     }
-     }
+}

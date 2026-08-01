@@ -36,8 +36,8 @@ public class Appointment {
 
     private String notes;
 
-    private double Fee;
+    private Double fee;
 
-    private boolean paid;
+    private Boolean paid;
     
 }

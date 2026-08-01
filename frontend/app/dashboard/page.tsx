@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuthGuard, DashboardSkeleton } from "@/components/DashboardShell";
 import DashboardShell from "@/components/DashboardShell";
+import { useAppointments, isUpcoming } from "@/lib/useAppointments";
 
 function getGreeting(): string {
     const hour = new Date().getHours();
@@ -35,14 +36,22 @@ function PulseLine() {
 }
 
 export default function DashboardPage() {
-    const auth = useAuthGuard();
+    const auth = useAuthGuard("PATIENT");
 
     if (!auth) {
         return <DashboardSkeleton />;
     }
 
+    return <DashboardContent auth={auth} />;
+}
+
+function DashboardContent({ auth }: { auth: { email: string; role: string } }) {
     const firstName = auth.email.split("@")[0];
     const isPatient = auth.role === "PATIENT";
+
+    const { appointments } = useAppointments(auth.email);
+    const upcomingCount = appointments.filter(isUpcoming).length;
+    const doctorsConsulted = new Set(appointments.map((a) => a.doctorId)).size;
 
     return (
         <DashboardShell auth={auth} title="Dashboard">
@@ -84,15 +93,22 @@ export default function DashboardPage() {
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-xl border-l-4 border-l-emerald-600 bg-white p-5 shadow-sm">
                     <p className="text-sm text-gray-500">Upcoming Appointments</p>
-                    <p className="mt-1 text-3xl font-semibold text-gray-900">0</p>
-                    <Link href="/doctors" className="mt-2 inline-block text-xs font-medium text-emerald-600 hover:underline">
-                        Book your first visit →
+                    <p className="mt-1 text-3xl font-semibold text-gray-900">{upcomingCount}</p>
+                    <Link
+                        href="/doctors"
+                        className="mt-2 inline-block text-xs font-medium text-emerald-600 hover:underline"
+                    >
+                        {upcomingCount === 0 ? "Book your first visit →" : "Book another visit →"}
                     </Link>
                 </div>
                 <div className="rounded-xl border-l-4 border-l-emerald-600 bg-white p-5 shadow-sm">
                     <p className="text-sm text-gray-500">Doctors Consulted</p>
-                    <p className="mt-1 text-3xl font-semibold text-gray-900">0</p>
-                    <p className="mt-2 text-xs text-gray-400">Your visit history will show up here</p>
+                    <p className="mt-1 text-3xl font-semibold text-gray-900">{doctorsConsulted}</p>
+                    <p className="mt-2 text-xs text-gray-400">
+                        {doctorsConsulted === 0
+                            ? "Your visit history will show up here"
+                            : "Across all your appointments"}
+                    </p>
                 </div>
                 <div className="rounded-xl border-l-4 border-l-emerald-600 bg-white p-5 shadow-sm">
                     <p className="text-sm text-gray-500">Account Status</p>
@@ -112,15 +128,21 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm text-gray-500">Browse verified doctors near you</p>
                 </Link>
 
-                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <Link
+                    href="/appointments"
+                    className="group rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md"
+                >
                     <h4 className="font-semibold text-gray-900">My Appointments</h4>
                     <p className="mt-1 text-sm text-gray-500">View and manage your bookings</p>
-                </div>
+                </Link>
 
-                <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+                <Link
+                    href="/profile"
+                    className="group rounded-xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-md"
+                >
                     <h4 className="font-semibold text-gray-900">My Profile</h4>
                     <p className="mt-1 text-sm text-gray-500">Update your personal information</p>
-                </div>
+                </Link>
             </div>
         </DashboardShell>
     );
