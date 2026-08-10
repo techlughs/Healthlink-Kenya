@@ -5,9 +5,13 @@ import { useAuthGuard, DashboardSkeleton } from "@/components/DashboardShell";
 import DashboardShell from "@/components/DashboardShell";
 import { useAppointments, isUpcoming, formatApptDateTime, type Appointment } from "@/lib/useAppointments";
 import { usePatientReviews } from "@/lib/useReviews";
+import { useUser } from "@/lib/useUser";
+import AppointmentCalendar from "@/components/AppointmentCalender";
+import MpesaPaymentModal from "@/components/MpesaPaymentModal";
 import api from "@/lib/api";
 
 type FilterTab = "all" | "upcoming" | "past" | "cancelled";
+type ViewMode = "list" | "calendar";
 
 function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
     return (
@@ -62,9 +66,12 @@ export default function AppointmentsPage() {
 function AppointmentsContent({ auth }: { auth: { email: string; role: string } }) {
     const { appointments, loading, error, refetch } = useAppointments(auth.email);
     const { submitReview, reviewedDoctorIds } = usePatientReviews(auth.email);
+    const { user } = useUser(auth.email);
     const [filter, setFilter] = useState<FilterTab>("all");
+    const [view, setView] = useState<ViewMode>("list");
     const [cancellingId, setCancellingId] = useState<string | null>(null);
     const [actionError, setActionError] = useState("");
+    const [payingAppointment, setPayingAppointment] = useState<Appointment | null>(null);
 
     const [reviewOpenId, setReviewOpenId] = useState<string | null>(null);
     const [reviewRating, setReviewRating] = useState(0);
@@ -139,14 +146,53 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
 
     return (
         <DashboardShell auth={auth} title="My Appointments">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <style>{`
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .fade-in-up {
+                    animation: fadeInUp 0.45s ease-out both;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .fade-in-up { animation: none; }
+                }
+            `}</style>
+
+            <div className="fade-in-up flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-semibold text-gray-900">My Appointments</h2>
                     <p className="mt-1 text-sm text-gray-500">All your visits, past and upcoming, in one place.</p>
                 </div>
+                <div className="flex rounded-lg border border-gray-200 bg-white p-1">
+                    <button
+                        onClick={() => setView("list")}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                            view === "list" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        List
+                    </button>
+                    <button
+                        onClick={() => setView("calendar")}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                            view === "calendar" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        Calendar
+                    </button>
+                </div>
             </div>
 
-            <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+            {view === "calendar" && (
+                <div className="fade-in-up mt-5" style={{ animationDelay: "60ms" }}>
+                    <AppointmentCalendar appointments={appointments} nameField="doctorName" />
+                </div>
+            )}
+
+            {view === "list" && (
+                <>
+            <div className="fade-in-up mt-5 flex gap-2 overflow-x-auto pb-1" style={{ animationDelay: "60ms" }}>
                 {tabs.map((tab) => (
                     <button
                         key={tab.key}
@@ -194,7 +240,7 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
 
                 {!loading &&
                     !error &&
-                    filtered.map((a) => {
+                    filtered.map((a, i) => {
                         const cancelled = a.status?.toUpperCase() === "CANCELLED";
                         const completed = a.status?.toUpperCase() === "COMPLETED";
                         const canCancel = isUpcoming(a) && !cancelled;
@@ -206,7 +252,8 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
                         return (
                             <div
                                 key={a.id}
-                                className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+                                className="fade-in-up rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+                                style={{ animationDelay: `${Math.min(i * 50, 350)}ms` }}
                             >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="min-w-0">
@@ -232,15 +279,32 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
                                         )}
                                         {completed && alreadyReviewed && (
                                             <p className="mt-1.5 text-xs font-medium text-emerald-600">
-                                                 You have reviewed this doctor
+                                                ✓ You've reviewed this doctor
                                             </p>
                                         )}
                                     </div>
 
                                     <div className="flex shrink-0 items-center gap-3">
-                                        <span className="text-sm font-semibold text-gray-900">
-                                            KSh {a.fee?.toLocaleString()}
-                                        </span>
+                                        <div className="text-right">
+                                            <span className="block text-sm font-semibold text-gray-900">
+                                                KSh {a.fee?.toLocaleString()}
+                                            </span>
+                                            {a.paid ? (
+                                                <span className="text-[11px] font-medium text-emerald-600">✓ Paid</span>
+                                            ) : (
+                                                !cancelled && (
+                                                    <span className="text-[11px] font-medium text-amber-600">Unpaid</span>
+                                                )
+                                            )}
+                                        </div>
+                                        {!a.paid && !cancelled && (
+                                            <button
+                                                onClick={() => setPayingAppointment(a)}
+                                                className="rounded-lg bg-linear-to-r from-emerald-600 to-teal-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 transition-[transform] duration-150 hover:scale-105 hover:from-emerald-500 hover:to-teal-400 active:scale-100"
+                                            >
+                                                Pay Now
+                                            </button>
+                                        )}
                                         {canCancel && (
                                             <button
                                                 onClick={() => handleCancel(a)}
@@ -253,7 +317,7 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
                                         {canReview && (
                                             <button
                                                 onClick={() => openReview(a)}
-                                                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-600"
+                                                className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-[transform,background-color] duration-150 hover:scale-105 hover:bg-amber-600 active:scale-100"
                                             >
                                                 Leave a Review
                                             </button>
@@ -301,6 +365,22 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
                         );
                     })}
             </div>
+                </>
+            )}
+
+            {payingAppointment && (
+                <MpesaPaymentModal
+                    appointmentId={payingAppointment.id}
+                    patientId={auth.email}
+                    patientName={payingAppointment.patientName}
+                    doctorId={payingAppointment.doctorId}
+                    doctorName={payingAppointment.doctorName}
+                    amount={payingAppointment.fee}
+                    initialPhone={user?.phone || ""}
+                    onClose={() => setPayingAppointment(null)}
+                    onPaid={refetch}
+                />
+            )}
         </DashboardShell>
     );
 }

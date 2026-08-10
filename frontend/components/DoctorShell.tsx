@@ -47,9 +47,19 @@ const XIcon = (p: { className?: string }) => (
     </IconBase>
 );
 
+const BarChartIcon = (p: { className?: string }) => (
+    <IconBase className={p.className}>
+        <path d="M3 3v18h18" />
+        <rect x="7" y="12" width="3" height="6" />
+        <rect x="12" y="8" width="3" height="10" />
+        <rect x="17" y="5" width="3" height="13" />
+    </IconBase>
+);
+
 const DOCTOR_NAV = [
     { label: "Dashboard", href: "/doctor/dashboard", icon: HomeIcon },
     { label: "My Appointments", href: "/doctor/appointments", icon: CalendarIcon },
+    { label: "Analytics", href: "/doctor/analytics", icon: BarChartIcon },
     { label: "My Profile", href: "/doctor/profile", icon: UserIcon },
 ];
 
@@ -100,6 +110,18 @@ export default function DoctorShell({ auth, title, children }: DoctorShellProps)
 
     return (
         <div className="flex min-h-screen bg-gray-50">
+            <style>{`
+                @keyframes popIn {
+                    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+                    to { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .pop-in {
+                    animation: popIn 0.15s ease-out both;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .pop-in { animation: none; }
+                }
+            `}</style>
             {sidebarOpen && (
                 <div
                     className="fixed inset-0 z-40 bg-gray-900/30 lg:hidden"
@@ -220,7 +242,7 @@ export default function DoctorShell({ auth, title, children }: DoctorShellProps)
                             </button>
 
                             {notifOpen && (
-                                <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-100 bg-white shadow-lg">
+                                <div className="pop-in absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-100 bg-white shadow-lg">
                                     <div className="border-b border-gray-100 px-4 py-3">
                                         <p className="text-sm font-semibold text-gray-900">
                                             Pending Requests

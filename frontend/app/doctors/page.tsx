@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuthGuard, DashboardSkeleton } from "@/components/DashboardShell";
 import DashboardShell from "@/components/DashboardShell";
 import BookAppointmentModal from "@/components/BookAppointmentModal";
+import { useDoctorReviews, formatReviewDate } from "@/lib/useDoctorReviews";
 import api from "@/lib/api";
 import type { Doctor } from "@/types";
 
@@ -17,6 +18,9 @@ export default function DoctorsPage() {
     const [activeSpecialty, setActiveSpecialty] = useState("All");
     const [bookingDoctor, setBookingDoctor] = useState<Doctor | null>(null);
     const [bookedDoctorName, setBookedDoctorName] = useState("");
+    const [reviewsDoctor, setReviewsDoctor] = useState<Doctor | null>(null);
+
+    const { reviews, loading: reviewsLoading, error: reviewsError, fetchReviews } = useDoctorReviews();
 
     useEffect(() => {
         if (!auth) return;
@@ -85,6 +89,11 @@ export default function DoctorsPage() {
     const patientId = auth.email;
     const patientName = auth.email.split("@")[0];
 
+    function openReviews(doctor: Doctor) {
+        setReviewsDoctor(doctor);
+        fetchReviews(doctor.id);
+    }
+
     return (
         <DashboardShell
             auth={auth}
@@ -92,7 +101,20 @@ export default function DoctorsPage() {
             searchPlaceholder="Search by name, specialty, or location…"
             onSearchChange={setQuery}
         >
-            <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-emerald-950 via-teal-900 to-emerald-800 px-8 py-10 text-white shadow-lg shadow-emerald-950/30">
+            <style>{`
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .fade-in-up {
+                    animation: fadeInUp 0.45s ease-out both;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .fade-in-up { animation: none; }
+                }
+            `}</style>
+
+            <div className="fade-in-up relative overflow-hidden rounded-2xl bg-linear-to-br from-emerald-950 via-teal-900 to-emerald-800 px-8 py-10 text-white shadow-lg shadow-emerald-950/30">
                 <div className="pointer-events-none absolute -top-16 -right-16 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-cyan-300/10 blur-3xl" />
                 <div className="relative z-10">
@@ -129,7 +151,7 @@ export default function DoctorsPage() {
             </div>
 
             {bookedDoctorName && (
-                <div className="mt-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                <div className="fade-in-up mt-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
@@ -158,14 +180,14 @@ export default function DoctorsPage() {
             )}
 
             {!loading && specialties.length > 1 && (
-                <div className="mt-6 flex flex-wrap gap-2">
+                <div className="fade-in-up mt-6 flex flex-wrap gap-2" style={{ animationDelay: "80ms" }}>
                     {specialties.map((specialty) => {
                         const active = specialty === activeSpecialty;
                         return (
                             <button
                                 key={specialty}
                                 onClick={() => setActiveSpecialty(specialty)}
-                                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
                                     active
                                         ? "border-emerald-600 bg-emerald-600 text-white shadow-sm shadow-emerald-500/30"
                                         : "border-gray-200 bg-white text-gray-600 hover:border-emerald-300 hover:text-emerald-700"
@@ -193,7 +215,7 @@ export default function DoctorsPage() {
             )}
 
             {!loading && !loadError && filteredDoctors.length === 0 && (
-                <div className="mt-6 rounded-xl border border-gray-100 bg-white p-10 text-center shadow-sm">
+                <div className="fade-in-up mt-6 rounded-xl border border-gray-100 bg-white p-10 text-center shadow-sm">
                     <p className="text-sm font-medium text-gray-700">No doctors found</p>
                     <p className="mt-1 text-sm text-gray-500">
                         Try a different name, specialty, or location.
@@ -203,12 +225,18 @@ export default function DoctorsPage() {
 
             {!loading && !loadError && filteredDoctors.length > 0 && (
                 <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredDoctors.map((doctor) => (
-                        <DoctorCard
+                    {filteredDoctors.map((doctor, i) => (
+                        <div
                             key={doctor.id}
-                            doctor={doctor}
-                            onBook={() => setBookingDoctor(doctor)}
-                        />
+                            className="fade-in-up"
+                            style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}
+                        >
+                            <DoctorCard
+                                doctor={doctor}
+                                onBook={() => setBookingDoctor(doctor)}
+                                onViewReviews={() => openReviews(doctor)}
+                            />
+                        </div>
                     ))}
                 </div>
             )}
@@ -225,16 +253,136 @@ export default function DoctorsPage() {
                     }}
                 />
             )}
+
+            {reviewsDoctor && (
+                <ReviewsModal
+                    doctor={reviewsDoctor}
+                    reviews={reviews}
+                    loading={reviewsLoading}
+                    error={reviewsError}
+                    onClose={() => setReviewsDoctor(null)}
+                />
+            )}
         </DashboardShell>
+    );
+}
+
+function StarRow({ rating, size = "h-4 w-4" }: { rating: number; size?: string }) {
+    return (
+        <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+                <svg
+                    key={n}
+                    viewBox="0 0 20 20"
+                    className={`${size} ${n <= Math.round(rating) ? "fill-amber-400" : "fill-gray-200"}`}
+                >
+                    <path d="M10 1.5l2.6 5.3 5.8.8-4.2 4.1 1 5.8L10 14.8l-5.2 2.7 1-5.8L1.6 7.6l5.8-.8L10 1.5z" />
+                </svg>
+            ))}
+        </div>
+    );
+}
+
+function ReviewsModal({
+    doctor,
+    reviews,
+    loading,
+    error,
+    onClose,
+}: {
+    doctor: Doctor;
+    reviews: { id: string; patientName: string; rating: number; comment: string; reviewDate: string }[];
+    loading: boolean;
+    error: string;
+    onClose: () => void;
+}) {
+    return (
+        <div
+            className="fixed inset-0 z-60 flex items-center justify-center bg-gray-900/50 p-4"
+            onClick={onClose}
+        >
+            <div
+                className="max-h-[80vh] w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-start justify-between border-b border-gray-100 px-6 py-4">
+                    <div>
+                        <h2 className="text-lg font-semibold text-gray-900">Patient Reviews</h2>
+                        <p className="mt-0.5 text-sm text-gray-500">{doctor.fullName}</p>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        aria-label="Close"
+                        className="rounded-md p-1 text-gray-400 hover:bg-gray-50 hover:text-gray-600"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-5 w-5"
+                        >
+                            <path d="M18 6 6 18M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
+                    {loading && (
+                        <div className="space-y-3">
+                            {[0, 1, 2].map((i) => (
+                                <div key={i} className="h-16 animate-pulse rounded-lg bg-gray-100" />
+                            ))}
+                        </div>
+                    )}
+
+                    {!loading && error && (
+                        <p className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+                            {error}
+                        </p>
+                    )}
+
+                    {!loading && !error && reviews.length === 0 && (
+                        <p className="py-6 text-center text-sm text-gray-500">
+                            No reviews yet for this doctor.
+                        </p>
+                    )}
+
+                    {!loading && !error && reviews.length > 0 && (
+                        <div className="space-y-4">
+                            {reviews.map((r) => (
+                                <div key={r.id} className="border-b border-gray-50 pb-4 last:border-b-0 last:pb-0">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium text-gray-900">{r.patientName}</p>
+                                        <p className="text-xs text-gray-400">{formatReviewDate(r.reviewDate)}</p>
+                                    </div>
+                                    <div className="mt-1">
+                                        <StarRow rating={r.rating} size="h-3.5 w-3.5" />
+                                    </div>
+                                    {r.comment && (
+                                        <p className="mt-1.5 text-sm text-gray-600">{r.comment}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 }
 
 function DoctorCard({
     doctor,
     onBook,
+    onViewReviews,
 }: {
     doctor: Doctor;
     onBook: () => void;
+    onViewReviews: () => void;
 }) {
     const initials = doctor.fullName
         .split(" ")
@@ -247,7 +395,7 @@ function DoctorCard({
     const reviews = doctor.totalReviews || 0;
 
     return (
-        <div className="group relative overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+        <div className="group relative h-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-lg">
             <div className="h-16 bg-linear-to-r from-emerald-600 to-teal-500" />
 
             <div className="px-6 pb-6">
@@ -285,8 +433,11 @@ function DoctorCard({
                 </div>
 
                 <div className="mt-2 flex items-center gap-1.5">
-                    {rating ? (
-                        <>
+                    {rating && reviews > 0 ? (
+                        <button
+                            onClick={onViewReviews}
+                            className="flex items-center gap-1.5 rounded-md -mx-1 px-1 py-0.5 transition-colors hover:bg-amber-50"
+                        >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24"
@@ -298,10 +449,10 @@ function DoctorCard({
                             <span className="text-sm font-medium text-gray-700">
                                 {rating.toFixed(1)}
                             </span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-400 underline decoration-dotted underline-offset-2">
                                 ({reviews} review{reviews === 1 ? "" : "s"})
                             </span>
-                        </>
+                        </button>
                     ) : (
                         <span className="text-xs text-gray-400">No reviews yet</span>
                     )}
@@ -334,7 +485,7 @@ function DoctorCard({
                     </div>
                     <button
                         onClick={onBook}
-                        className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 transition group-hover:bg-emerald-700"
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-emerald-500/30 transition-[transform,background-color] duration-150 hover:scale-105 hover:bg-emerald-700 active:scale-100"
                     >
                         Book Appointment
                     </button>

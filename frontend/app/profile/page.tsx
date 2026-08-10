@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuthGuard, DashboardSkeleton } from "@/components/DashboardShell";
 import DashboardShell from "@/components/DashboardShell";
 import { useUser } from "@/lib/useUser";
+import { usePaymentHistory } from "@/lib/usePayment";
 
 export default function ProfilePage() {
     const auth = useAuthGuard("PATIENT");
@@ -17,6 +18,7 @@ export default function ProfilePage() {
 
 function ProfileContent({ auth }: { auth: { email: string; role: string } }) {
     const { user, loading, error, updateProfile } = useUser(auth.email);
+    const { payments, loading: paymentsLoading } = usePaymentHistory(auth.email);
 
     const [editing, setEditing] = useState(false);
     const [fullName, setFullName] = useState("");
@@ -65,7 +67,20 @@ function ProfileContent({ auth }: { auth: { email: string; role: string } }) {
 
     return (
         <DashboardShell auth={auth} title="My Profile">
-            <div>
+            <style>{`
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .fade-in-up {
+                    animation: fadeInUp 0.45s ease-out both;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .fade-in-up { animation: none; }
+                }
+            `}</style>
+
+            <div className="fade-in-up">
                 <h2 className="text-xl font-semibold text-gray-900">My Profile</h2>
                 <p className="mt-1 text-sm text-gray-500">Manage your personal information.</p>
             </div>
@@ -75,11 +90,11 @@ function ProfileContent({ auth }: { auth: { email: string; role: string } }) {
             )}
 
             {!loading && error && (
-                <p className="mt-6 rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-600">{error}</p>
+                <p className="fade-in-up mt-6 rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-600">{error}</p>
             )}
 
             {!loading && !error && user && (
-                <div className="mt-6 max-w-2xl overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <div className="fade-in-up mt-6 max-w-2xl overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm" style={{ animationDelay: "80ms" }}>
                     <div className="relative bg-linear-to-br from-emerald-950 via-teal-900 to-emerald-800 px-6 py-8">
                         <div className="flex items-center gap-4">
                             {profileImage ? (
@@ -212,6 +227,75 @@ function ProfileContent({ auth }: { auth: { email: string; role: string } }) {
                                     </button>
                                 </div>
                             </form>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {!loading && !error && user && (
+                <div
+                    className="fade-in-up mt-6 max-w-2xl overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm"
+                    style={{ animationDelay: "140ms" }}
+                >
+                    <div className="border-b border-gray-100 px-6 py-4">
+                        <h3 className="text-sm font-semibold text-gray-900">Payment History</h3>
+                        <p className="mt-0.5 text-xs text-gray-500">Your M-Pesa transactions on HealthLink.</p>
+                    </div>
+
+                    <div className="p-6">
+                        {paymentsLoading && (
+                            <div className="space-y-2">
+                                {[0, 1].map((i) => (
+                                    <div key={i} className="h-14 animate-pulse rounded-lg bg-gray-100" />
+                                ))}
+                            </div>
+                        )}
+
+                        {!paymentsLoading && payments.length === 0 && (
+                            <p className="text-sm text-gray-500">No payments yet.</p>
+                        )}
+
+                        {!paymentsLoading && payments.length > 0 && (
+                            <div className="space-y-2">
+                                {payments.map((p) => (
+                                    <div
+                                        key={p.id}
+                                        className="flex items-center justify-between rounded-lg border border-gray-100 px-4 py-3"
+                                    >
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-medium text-gray-900">
+                                                {p.doctorName}
+                                            </p>
+                                            <p className="mt-0.5 text-xs text-gray-500">
+                                                {new Date(p.createdAt).toLocaleDateString("en-GB", {
+                                                    day: "numeric",
+                                                    month: "short",
+                                                    year: "numeric",
+                                                })}
+                                                {p.mpesaReceiptNumber && (
+                                                    <span className="font-mono"> · {p.mpesaReceiptNumber}</span>
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <p className="text-sm font-semibold text-gray-900">
+                                                KSh {p.amount.toLocaleString()}
+                                            </p>
+                                            <span
+                                                className={`text-[11px] font-medium ${
+                                                    p.status === "SUCCESS"
+                                                        ? "text-emerald-600"
+                                                        : p.status === "PENDING"
+                                                          ? "text-amber-600"
+                                                          : "text-red-600"
+                                                }`}
+                                            >
+                                                {p.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>

@@ -6,8 +6,10 @@ import DoctorShell from "@/components/DoctorShell";
 import { useDoctorProfile } from "@/lib/Usedoctorprofile";
 import { useDoctorAppointments } from "@/lib/Usedoctorappointments";
 import { formatApptDateTime, isUpcoming, type Appointment } from "@/lib/useAppointments";
+import AppointmentCalendar  from '@/components/AppointmentCalender';
 
 type FilterTab = "all" | "pending" | "confirmed" | "completed" | "cancelled";
+type ViewMode = "list" | "calendar";
 
 function statusStyles(status: string) {
     switch (status?.toUpperCase()) {
@@ -47,6 +49,7 @@ function DoctorAppointmentsContent({ auth }: { auth: { email: string; role: stri
     const loading = doctorLoading || (!!doctor && apptsLoading);
 
     const [filter, setFilter] = useState<FilterTab>("all");
+    const [view, setView] = useState<ViewMode>("list");
     const [busyId, setBusyId] = useState<string | null>(null);
     const [actionError, setActionError] = useState("");
     const [notesDraft, setNotesDraft] = useState<Record<string, string>>({});
@@ -98,12 +101,53 @@ function DoctorAppointmentsContent({ auth }: { auth: { email: string; role: stri
 
     return (
         <DoctorShell auth={auth} title="My Appointments">
-            <div>
-                <h2 className="text-xl font-semibold text-gray-900">My Appointments</h2>
-                <p className="mt-1 text-sm text-gray-500">Manage your patient bookings.</p>
+            <style>{`
+                @keyframes fadeInUp {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                .fade-in-up {
+                    animation: fadeInUp 0.45s ease-out both;
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .fade-in-up { animation: none; }
+                }
+            `}</style>
+
+            <div className="fade-in-up flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 className="text-xl font-semibold text-gray-900">My Appointments</h2>
+                    <p className="mt-1 text-sm text-gray-500">Manage your patient bookings.</p>
+                </div>
+                <div className="flex rounded-lg border border-gray-200 bg-white p-1">
+                    <button
+                        onClick={() => setView("list")}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                            view === "list" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        List
+                    </button>
+                    <button
+                        onClick={() => setView("calendar")}
+                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${
+                            view === "calendar" ? "bg-emerald-600 text-white" : "text-gray-500 hover:text-gray-700"
+                        }`}
+                    >
+                        Calendar
+                    </button>
+                </div>
             </div>
 
-            <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
+            {view === "calendar" && (
+                <div className="fade-in-up mt-5" style={{ animationDelay: "60ms" }}>
+                    <AppointmentCalendar appointments={appointments} nameField="patientName" />
+                </div>
+            )}
+
+            {view === "list" && (
+                <>
+            <div className="fade-in-up mt-5 flex gap-2 overflow-x-auto pb-1" style={{ animationDelay: "60ms" }}>
                 {tabs.map((tab) => (
                     <button
                         key={tab.key}
@@ -151,7 +195,7 @@ function DoctorAppointmentsContent({ auth }: { auth: { email: string; role: stri
 
                 {!loading &&
                     !error &&
-                    filtered.map((a) => {
+                    filtered.map((a, i) => {
                         const status = a.status?.toUpperCase();
                         const canConfirm = status === "PENDING";
                         const canComplete = status === "CONFIRMED" && !isUpcoming(a);
@@ -160,7 +204,11 @@ function DoctorAppointmentsContent({ auth }: { auth: { email: string; role: stri
                         const busy = busyId === a.id;
 
                         return (
-                            <div key={a.id} className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+                            <div
+                                key={a.id}
+                                className="fade-in-up rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+                                style={{ animationDelay: `${Math.min(i * 50, 350)}ms` }}
+                            >
                                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
@@ -191,14 +239,21 @@ function DoctorAppointmentsContent({ auth }: { auth: { email: string; role: stri
                                     </div>
 
                                     <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                        <span className="text-sm font-semibold text-gray-900">
-                                            KSh {a.fee?.toLocaleString()}
-                                        </span>
+                                        <div className="text-right">
+                                            <span className="block text-sm font-semibold text-gray-900">
+                                                KSh {a.fee?.toLocaleString()}
+                                            </span>
+                                            {a.paid ? (
+                                                <span className="text-[11px] font-medium text-emerald-600">✓ Paid</span>
+                                            ) : (
+                                                <span className="text-[11px] font-medium text-amber-600">Unpaid</span>
+                                            )}
+                                        </div>
                                         {canConfirm && (
                                             <button
                                                 onClick={() => handleStatusChange(a, "CONFIRMED")}
                                                 disabled={busy}
-                                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                                                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-[transform,background-color] duration-150 hover:scale-105 hover:bg-emerald-700 active:scale-100 disabled:opacity-50 disabled:hover:scale-100"
                                             >
                                                 {busy ? "…" : "Confirm"}
                                             </button>
@@ -264,6 +319,8 @@ function DoctorAppointmentsContent({ auth }: { auth: { email: string; role: stri
                         );
                     })}
             </div>
+                </>
+            )}
         </DoctorShell>
     );
 }
