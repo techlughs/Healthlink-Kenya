@@ -2,8 +2,10 @@ package com.healthlink.backend.controller;
 
 import com.healthlink.backend.model.Review;
 import com.healthlink.backend.service.ReviewService;
+import com.healthlink.backend.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -26,9 +28,12 @@ public class ReviewController {
     }
 
     @GetMapping("/patient/{patientId}")
-    public ResponseEntity<List<Review>> getReviewsByPatient(@PathVariable String patientId) {
-        return ResponseEntity.ok(reviewService.getReviewsByPatient(patientId));
+public ResponseEntity<List<Review>> getReviewsByPatient(@PathVariable String patientId) {
+    if (!patientId.equals(SecurityUtils.getCurrentEmail())) {
+        throw new AccessDeniedException("Cannot view another patient's reviews");
     }
+    return ResponseEntity.ok(reviewService.getReviewsByPatient(patientId));
+}
 
     @GetMapping
     public ResponseEntity<List<Review>> getAllReviews() {

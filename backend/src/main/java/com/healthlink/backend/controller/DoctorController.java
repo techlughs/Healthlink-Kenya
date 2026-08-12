@@ -2,21 +2,23 @@ package com.healthlink.backend.controller;
 
 import com.healthlink.backend.model.Doctor;
 import com.healthlink.backend.service.DoctorService;
+import com.healthlink.backend.security.SecurityUtils;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/doctors")
-@CrossOrigin(origins = "*")
 public class DoctorController {
 
     @Autowired
     private DoctorService doctorService;
 
     @PostMapping
-    public ResponseEntity<Doctor> addDoctor(@RequestBody Doctor doctor) {
+    public ResponseEntity<Doctor> addDoctor(@Valid @RequestBody Doctor doctor) {
         return ResponseEntity.ok(doctorService.addDoctor(doctor));
     }
 
@@ -62,13 +64,23 @@ public class DoctorController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Doctor> updateDoctor(@PathVariable String id, @RequestBody Doctor doctor) {
+    public ResponseEntity<Doctor> updateDoctor(@PathVariable String id, @Valid @RequestBody Doctor doctor) {
+        assertOwnsListing(id);
         return ResponseEntity.ok(doctorService.updateDoctor(id, doctor));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDoctor(@PathVariable String id) {
+        assertOwnsListing(id);
         doctorService.deleteDoctor(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private void assertOwnsListing(String doctorId) {
+        Doctor existing = doctorService.getDoctorById(doctorId)
+                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+        if (!existing.getEmail().equals(SecurityUtils.getCurrentEmail())) {
+            throw new AccessDeniedException("Not authorized to modify this doctor listing");
+        }
     }
 }

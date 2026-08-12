@@ -1,9 +1,12 @@
 package com.healthlink.backend.controller;
 
 import com.healthlink.backend.security.JwtUtil;
+import com.healthlink.backend.security.LoginRateLimiter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -12,7 +15,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 public class AuthController {
 
     @Autowired
@@ -21,28 +23,42 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private LoginRateLimiter rateLimiter;
+
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> credentials) {
         String email = credentials.get("email");
         String password = credentials.get("password");
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
-        );
+        if (rateLimiter.isBlocked(email)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Too many login attempts. Try again in 15 minutes."));
+        }
 
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, password)
+            );
 
-        String role = userDetails.getAuthorities().stream()
-                .findFirst()
-                .map(a -> a.getAuthority().replace("ROLE_", ""))
-                .orElse("PATIENT");
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            rateLimiter.recordSuccess(email);
 
-        String token = jwtUtil.generateToken(userDetails.getUsername(), role);
+            String role = userDetails.getAuthorities().stream()
+                    .findFirst()
+                    .map(a -> a.getAuthority().replace("ROLE_", ""))
+                    .orElse("PATIENT");
 
-        return ResponseEntity.ok(Map.of(
-                "token", token,
-                "email", userDetails.getUsername(),
-                "role", role
-        ));
+            String token = jwtUtil.generateToken(userDetails.getUsername(), role);
+
+            return ResponseEntity.ok(Map.of(
+                    "token", token,
+                    "email", userDetails.getUsername(),
+                    "role", role
+            ));
+        } catch (BadCredentialsException ex) {
+            rateLimiter.recordFailure(email);
+            throw ex; // handled by GlobalExceptionHandler below
+        }
     }
 }

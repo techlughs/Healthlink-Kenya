@@ -279,7 +279,7 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
                                         )}
                                         {completed && alreadyReviewed && (
                                             <p className="mt-1.5 text-xs font-medium text-emerald-600">
-                                                ✓ You've reviewed this doctor
+                                                You have reviewed this doctor
                                             </p>
                                         )}
                                     </div>
