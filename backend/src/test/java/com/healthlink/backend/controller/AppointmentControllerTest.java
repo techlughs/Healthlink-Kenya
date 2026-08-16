@@ -3,9 +3,10 @@ package com.healthlink.backend.controller;
 import com.healthlink.backend.model.Appointment;
 import com.healthlink.backend.model.Doctor;
 import com.healthlink.backend.service.AppointmentService;
+import com.healthlink.backend.service.AuditService;
 import com.healthlink.backend.service.DoctorService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,6 +32,12 @@ class AppointmentControllerTest {
 
     @Mock
     private DoctorService doctorService;
+
+    @Mock
+    private AuditService auditService;
+
+    @Mock
+    private HttpServletRequest httpServletRequest;
 
     @InjectMocks
     private AppointmentController appointmentController;
@@ -105,7 +112,7 @@ class AppointmentControllerTest {
         appointment.setPatientId(OTHER_PATIENT_EMAIL); // trying to book as someone else
 
         assertThrows(AccessDeniedException.class,
-                () -> appointmentController.bookAppointment(appointment));
+                () -> appointmentController.bookAppointment(appointment, httpServletRequest));
     }
 
     @Test
@@ -120,6 +127,6 @@ class AppointmentControllerTest {
         when(doctorService.getDoctorById(DOCTOR_ID)).thenReturn(Optional.empty());
 
         assertThrows(AccessDeniedException.class,
-                () -> appointmentController.cancelAppointment("appt1"));
+                () -> appointmentController.cancelAppointment("appt1", httpServletRequest));
     }
 }
