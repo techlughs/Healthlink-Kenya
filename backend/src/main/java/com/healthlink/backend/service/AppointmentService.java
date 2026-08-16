@@ -1,5 +1,6 @@
 package com.healthlink.backend.service;
 
+import com.healthlink.backend.exception.DoubleBookingException;
 import com.healthlink.backend.model.Appointment;
 import com.healthlink.backend.repository.AppointmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,17 @@ public class AppointmentService {
     private AppointmentRepository appointmentRepository;
 
     public Appointment bookAppointment(Appointment appointment) {
+        boolean slotTaken = appointmentRepository
+                .findByDoctorIdAndAppointmentDateTime(appointment.getDoctorId(), appointment.getAppointmentDateTime())
+                .stream()
+                .anyMatch(existing -> !"CANCELLED".equals(existing.getStatus()));
+
+        if (slotTaken) {
+            throw new DoubleBookingException(
+                    "This doctor already has an appointment booked at that time. Please choose a different slot."
+            );
+        }
+
         appointment.setStatus("PENDING");
         return appointmentRepository.save(appointment);
     }
@@ -39,24 +51,24 @@ public class AppointmentService {
     }
 
     public Appointment updateAppointmentStatus(String id, String status) {
-        return appointmentRepository.findById(id).map(Appointment -> {
-            Appointment.setStatus(status);
-            return appointmentRepository.save(Appointment);
+        return appointmentRepository.findById(id).map(appointment -> {
+            appointment.setStatus(status);
+            return appointmentRepository.save(appointment);
         }).orElseThrow(() -> new RuntimeException("Appointment not found"));
     }
 
-    public Appointment addDoctorNotes(String id, String Notes) {
-        return appointmentRepository.findById(id).map(Appointment -> {
-            Appointment.setNotes(Notes);
-            Appointment.setStatus("COMPLETED");
-            return appointmentRepository.save(Appointment);
+    public Appointment addDoctorNotes(String id, String notes) {
+        return appointmentRepository.findById(id).map(appointment -> {
+            appointment.setNotes(notes);
+            appointment.setStatus("COMPLETED");
+            return appointmentRepository.save(appointment);
         }).orElseThrow(() -> new RuntimeException("Appointment not found"));
     }
 
     public Appointment cancelAppointment(String id) {
-        return appointmentRepository.findById(id).map(Appointment -> {
-            Appointment.setStatus("CANCELLED");
-            return appointmentRepository.save(Appointment);
+        return appointmentRepository.findById(id).map(appointment -> {
+            appointment.setStatus("CANCELLED");
+            return appointmentRepository.save(appointment);
         }).orElseThrow(() -> new RuntimeException("Appointment not found"));
     }
 

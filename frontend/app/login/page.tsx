@@ -25,9 +25,10 @@ export default function LoginPage() {
                 password,
             });
 
-            const { token, role } = response.data;
+            const { token, refreshToken, role } = response.data;
 
             localStorage.setItem("token", token);
+            localStorage.setItem("refreshToken", refreshToken);
             localStorage.setItem("role", role);
             localStorage.setItem("email", email);
 
@@ -149,10 +150,11 @@ export default function LoginPage() {
                         )}
 
                         <div>
-                            <label className="mb-1.5 block text-sm font-medium text-white/70">
+                            <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-white/70">
                                 Email
                             </label>
                             <input
+                                id="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
@@ -162,11 +164,12 @@ export default function LoginPage() {
                         </div>
 
                         <div>
-                            <label className="mb-1.5 block text-sm font-medium text-white/70">
+                            <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-white/70">
                                 Password
                             </label>
                             <div className="relative">
                                 <input
+                                    id="password"
                                     type={showPassword ? "text" : "password"}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}

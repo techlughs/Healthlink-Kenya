@@ -53,6 +53,12 @@ public ResponseEntity<Map<String, Object>> handleBadCredentials(
         org.springframework.security.authentication.BadCredentialsException ex) {
     return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password");
 }
+    
+    @ExceptionHandler(DoubleBookingException.class)
+public ResponseEntity<Map<String, String>> handleDoubleBooking(DoubleBookingException ex) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(Map.of("message", ex.getMessage()));
+}
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new LinkedHashMap<>();

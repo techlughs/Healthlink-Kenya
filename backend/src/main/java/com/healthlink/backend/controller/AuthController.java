@@ -2,6 +2,8 @@ package com.healthlink.backend.controller;
 
 import com.healthlink.backend.security.JwtUtil;
 import com.healthlink.backend.security.LoginRateLimiter;
+import com.healthlink.backend.service.AuditService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,12 +32,19 @@ public class AuthController {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private AuditService auditService;
+
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> credentials) {
+    public ResponseEntity<Map<String, String>> login(
+            @RequestBody Map<String, String> credentials,
+            HttpServletRequest request) {
         String email = credentials.get("email");
         String password = credentials.get("password");
+        String ip = getClientIp(request);
 
         if (rateLimiter.isBlocked(email)) {
+            auditService.log(email, "LOGIN_BLOCKED", "Blocked due to too many failed attempts", ip);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Too many login attempts. Try again in 15 minutes."));
         }
@@ -56,6 +65,8 @@ public class AuthController {
             String accessToken = jwtUtil.generateToken(userDetails.getUsername(), role);
             String refreshToken = jwtUtil.generateRefreshToken(userDetails.getUsername());
 
+            auditService.log(email, "LOGIN_SUCCESS", "Logged in as " + role, ip);
+
             return ResponseEntity.ok(Map.of(
                     "token", accessToken,
                     "refreshToken", refreshToken,
@@ -64,6 +75,7 @@ public class AuthController {
             ));
         } catch (BadCredentialsException ex) {
             rateLimiter.recordFailure(email);
+            auditService.log(email, "LOGIN_FAILURE", "Invalid credentials", ip);
             throw ex; // handled by GlobalExceptionHandler
         }
     }
@@ -91,5 +103,13 @@ public class AuthController {
                 "email", email,
                 "role", role
         ));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }
