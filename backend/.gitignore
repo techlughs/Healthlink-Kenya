@@ -34,3 +34,4 @@ build/
 
 # Protect sensitive configuration
 src/main/resources/application.properties
+set-env.ps1

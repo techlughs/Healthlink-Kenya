@@ -10,6 +10,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
@@ -25,6 +26,9 @@ public class AuthController {
 
     @Autowired
     private LoginRateLimiter rateLimiter;
+
+    @Autowired
+    private UserDetailsService userDetailsService;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody Map<String, String> credentials) {
@@ -49,16 +53,43 @@ public class AuthController {
                     .map(a -> a.getAuthority().replace("ROLE_", ""))
                     .orElse("PATIENT");
 
-            String token = jwtUtil.generateToken(userDetails.getUsername(), role);
+            String accessToken = jwtUtil.generateToken(userDetails.getUsername(), role);
+            String refreshToken = jwtUtil.generateRefreshToken(userDetails.getUsername());
 
             return ResponseEntity.ok(Map.of(
-                    "token", token,
+                    "token", accessToken,
+                    "refreshToken", refreshToken,
                     "email", userDetails.getUsername(),
                     "role", role
             ));
         } catch (BadCredentialsException ex) {
             rateLimiter.recordFailure(email);
-            throw ex; // handled by GlobalExceptionHandler below
+            throw ex; // handled by GlobalExceptionHandler
         }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<Map<String, String>> refresh(@RequestBody Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+
+        if (refreshToken == null || !jwtUtil.isTokenValid(refreshToken) || !jwtUtil.isRefreshToken(refreshToken)) {
+            throw new BadCredentialsException("Invalid or expired refresh token");
+        }
+
+        String email = jwtUtil.extractEmail(refreshToken);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+        String role = userDetails.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .orElse("PATIENT");
+
+        String newAccessToken = jwtUtil.generateToken(email, role);
+
+        return ResponseEntity.ok(Map.of(
+                "token", newAccessToken,
+                "email", email,
+                "role", role
+        ));
     }
 }

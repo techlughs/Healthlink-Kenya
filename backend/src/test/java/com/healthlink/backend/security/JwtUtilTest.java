@@ -37,4 +37,24 @@ class JwtUtilTest {
         String tampered = token.substring(0, token.length() - 5) + "xxxxx";
         assertFalse(jwtUtil.isTokenValid(tampered));
     }
+
+    @Test
+    void accessTokenIsIdentifiedCorrectly() {
+        String token = jwtUtil.generateToken("mary@healthlink.com", "PATIENT");
+        assertTrue(jwtUtil.isAccessToken(token));
+        assertFalse(jwtUtil.isRefreshToken(token));
+    }
+
+    @Test
+    void refreshTokenIsIdentifiedCorrectly() {
+        String token = jwtUtil.generateRefreshToken("mary@healthlink.com");
+        assertTrue(jwtUtil.isRefreshToken(token));
+        assertFalse(jwtUtil.isAccessToken(token));
+    }
+
+    @Test
+    void refreshTokenHasNoRoleClaim() {
+        String token = jwtUtil.generateRefreshToken("mary@healthlink.com");
+        assertNull(jwtUtil.extractRole(token));
+    }
 }
