@@ -3,6 +3,8 @@ package com.healthlink.backend.service;
 import com.healthlink.backend.model.Doctor;
 import com.healthlink.backend.repository.DoctorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +29,10 @@ public class DoctorService {
 
     public List<Doctor> getAllDoctors() {
         return doctorRepository.findAll();
+    }
+
+    public Page<Doctor> getAllDoctors(Pageable pageable) {
+        return doctorRepository.findAll(pageable);
     }
 
     public List<Doctor> getDoctorsBySpecialty(String specialty) {

@@ -5,6 +5,8 @@ import com.healthlink.backend.service.DoctorService;
 import com.healthlink.backend.security.SecurityUtils;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
@@ -37,8 +39,10 @@ public class DoctorController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Doctor>> getAllDoctors() {
-        return ResponseEntity.ok(doctorService.getAllDoctors());
+    public ResponseEntity<Page<Doctor>> getAllDoctors(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(doctorService.getAllDoctors(PageRequest.of(page, size)));
     }
 
     @GetMapping("/speciality/{specialty}")
