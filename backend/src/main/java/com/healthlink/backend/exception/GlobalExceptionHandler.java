@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,17 +30,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(ResourceNotFoundException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
+    @ExceptionHandler(DoubleBookingException.class)
+    public ResponseEntity<Map<String, Object>> handleDoubleBooking(DoubleBookingException ex) {
+        return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
+        return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password");
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntime(RuntimeException ex) {
-        HttpStatus status = ex.getMessage() != null && ex.getMessage().toLowerCase().contains("not found")
-                ? HttpStatus.NOT_FOUND
-                : HttpStatus.BAD_REQUEST;
-        return buildResponse(status, ex.getMessage());
+        logger.error("Unhandled RuntimeException", ex);
+        return buildResponse(HttpStatus.BAD_REQUEST, "Something went wrong processing your request");
     }
 
     @ExceptionHandler(Exception.class)
@@ -47,18 +61,6 @@ public class GlobalExceptionHandler {
         logger.error("Unhandled exception", ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Something went wrong");
     }
-
-    @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)
-public ResponseEntity<Map<String, Object>> handleBadCredentials(
-        org.springframework.security.authentication.BadCredentialsException ex) {
-    return buildResponse(HttpStatus.UNAUTHORIZED, "Invalid email or password");
-}
-    
-    @ExceptionHandler(DoubleBookingException.class)
-public ResponseEntity<Map<String, String>> handleDoubleBooking(DoubleBookingException ex) {
-    return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(Map.of("message", ex.getMessage()));
-}
 
     private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
         Map<String, Object> body = new LinkedHashMap<>();

@@ -1,5 +1,6 @@
 package com.healthlink.backend.controller;
 
+import com.healthlink.backend.exception.ResourceNotFoundException;
 import com.healthlink.backend.model.Doctor;
 import com.healthlink.backend.service.DoctorService;
 import com.healthlink.backend.security.SecurityUtils;
@@ -21,6 +22,8 @@ public class DoctorController {
 
     @PostMapping
     public ResponseEntity<Doctor> addDoctor(@Valid @RequestBody Doctor doctor) {
+        
+        doctor.setEmail(SecurityUtils.getCurrentEmail());
         return ResponseEntity.ok(doctorService.addDoctor(doctor));
     }
 
@@ -82,7 +85,7 @@ public class DoctorController {
 
     private void assertOwnsListing(String doctorId) {
         Doctor existing = doctorService.getDoctorById(doctorId)
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
         if (!existing.getEmail().equals(SecurityUtils.getCurrentEmail())) {
             throw new AccessDeniedException("Not authorized to modify this doctor listing");
         }

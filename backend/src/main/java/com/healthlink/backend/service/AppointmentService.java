@@ -1,6 +1,7 @@
 package com.healthlink.backend.service;
 
 import com.healthlink.backend.exception.DoubleBookingException;
+import com.healthlink.backend.exception.ResourceNotFoundException;
 import com.healthlink.backend.model.Appointment;
 import com.healthlink.backend.repository.AppointmentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,7 +55,7 @@ public class AppointmentService {
         return appointmentRepository.findById(id).map(appointment -> {
             appointment.setStatus(status);
             return appointmentRepository.save(appointment);
-        }).orElseThrow(() -> new RuntimeException("Appointment not found"));
+        }).orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
     }
 
     public Appointment addDoctorNotes(String id, String notes) {
@@ -62,14 +63,14 @@ public class AppointmentService {
             appointment.setNotes(notes);
             appointment.setStatus("COMPLETED");
             return appointmentRepository.save(appointment);
-        }).orElseThrow(() -> new RuntimeException("Appointment not found"));
+        }).orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
     }
 
     public Appointment cancelAppointment(String id) {
         return appointmentRepository.findById(id).map(appointment -> {
             appointment.setStatus("CANCELLED");
             return appointmentRepository.save(appointment);
-        }).orElseThrow(() -> new RuntimeException("Appointment not found"));
+        }).orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
     }
 
     public void deleteAppointment(String id) {

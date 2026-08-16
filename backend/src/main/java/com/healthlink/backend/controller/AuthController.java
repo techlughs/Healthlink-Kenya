@@ -76,17 +76,29 @@ public class AuthController {
         } catch (BadCredentialsException ex) {
             rateLimiter.recordFailure(email);
             auditService.log(email, "LOGIN_FAILURE", "Invalid credentials", ip);
-            throw ex; // handled by GlobalExceptionHandler
+            throw ex; 
         }
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, String>> refresh(@RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> refresh(
+            @RequestBody Map<String, String> body,
+            HttpServletRequest request) {
+        String ip = getClientIp(request);
+
+        if (rateLimiter.isBlocked(ip)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Too many refresh attempts. Try again in 15 minutes."));
+        }
+
         String refreshToken = body.get("refreshToken");
 
         if (refreshToken == null || !jwtUtil.isTokenValid(refreshToken) || !jwtUtil.isRefreshToken(refreshToken)) {
+            rateLimiter.recordFailure(ip);
             throw new BadCredentialsException("Invalid or expired refresh token");
         }
+
+        rateLimiter.recordSuccess(ip);
 
         String email = jwtUtil.extractEmail(refreshToken);
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);

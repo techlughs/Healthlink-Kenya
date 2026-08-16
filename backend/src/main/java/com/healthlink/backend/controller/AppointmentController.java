@@ -1,5 +1,6 @@
 package com.healthlink.backend.controller;
 
+import com.healthlink.backend.exception.ResourceNotFoundException;
 import com.healthlink.backend.model.Appointment;
 import com.healthlink.backend.service.AppointmentService;
 import com.healthlink.backend.service.AuditService;
@@ -89,7 +90,7 @@ public class AppointmentController {
             @PathVariable String id,
             @RequestParam String status) {
         assertOwnerOrDoctor(appointmentService.getAppointmentById(id)
-                .orElseThrow(() -> new RuntimeException("Appointment not found")));
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found")));
         return ResponseEntity.ok(appointmentService.updateAppointmentStatus(id, status));
     }
 
@@ -108,7 +109,7 @@ public class AppointmentController {
             @PathVariable String id,
             HttpServletRequest request) {
         Appointment appointment = assertOwnerOrDoctor(appointmentService.getAppointmentById(id)
-                .orElseThrow(() -> new RuntimeException("Appointment not found")));
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found")));
         Appointment cancelled = appointmentService.cancelAppointment(id);
         auditService.log(
                 SecurityUtils.getCurrentEmail(),
@@ -122,7 +123,7 @@ public class AppointmentController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteAppointment(@PathVariable String id) {
         assertOwnerOrDoctor(appointmentService.getAppointmentById(id)
-                .orElseThrow(() -> new RuntimeException("Appointment not found")));
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found")));
         appointmentService.deleteAppointment(id);
         return ResponseEntity.noContent().build();
     }

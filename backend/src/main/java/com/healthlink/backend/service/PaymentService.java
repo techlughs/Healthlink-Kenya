@@ -1,5 +1,6 @@
 package com.healthlink.backend.service;
 
+import com.healthlink.backend.exception.ResourceNotFoundException;
 import com.healthlink.backend.model.Appointment;
 import com.healthlink.backend.model.Payment;
 import com.healthlink.backend.repository.AppointmentRepository;
@@ -37,14 +38,21 @@ public class PaymentService {
         return paymentRepository.save(request);
     }
 
+    public Optional<Payment> getPaymentById(String paymentId) {
+        return paymentRepository.findById(paymentId);
+    }
+
     /**
      * Simulates the Safaricom callback that arrives once the patient enters
      * their PIN: marks the payment as successful, generates an M-Pesa-style
      * receipt number, and flags the linked appointment as paid.
+     *
+     * Ownership is verified by the caller (PaymentController) before this
+     * runs — this method assumes the paymentId has already been authorized.
      */
     public Payment confirmPayment(String paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
 
         payment.setStatus("SUCCESS");
         payment.setMpesaReceiptNumber(generateReceiptNumber());
