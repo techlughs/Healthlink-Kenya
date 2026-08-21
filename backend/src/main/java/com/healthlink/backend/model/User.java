@@ -36,7 +36,7 @@ public class User {
     private String password;
 
     @NotBlank(message = "Role is required")
-    @Pattern(regexp = "PATIENT|DOCTOR", message = "Role must be PATIENT or DOCTOR")
+    @Pattern(regexp = "PATIENT|DOCTOR|ADMIN", message = "Role must be PATIENT, DOCTOR, or ADMIN")
     private String role;
 
     @Pattern(regexp = "^$|^[0-9+\\- ]{7,15}$", message = "Invalid phone number")

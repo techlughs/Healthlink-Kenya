@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Appointment } from "@/lib/useAppointments";
+import EmptyState from "./EmptyState";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
@@ -49,7 +50,6 @@ function formatTime(iso: string) {
 
 interface AppointmentCalendarProps {
     appointments: Appointment[];
-    /** Which name to show on each pill/card: the other party from this viewer's perspective */
     nameField: "doctorName" | "patientName";
     renderExtra?: (appointment: Appointment) => React.ReactNode;
 }
@@ -58,6 +58,19 @@ export default function AppointmentCalendar({ appointments, nameField, renderExt
     const today = new Date();
     const [cursor, setCursor] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
     const [selectedDate, setSelectedDate] = useState<Date | null>(today);
+
+    if (appointments.length === 0) {
+        return (
+            <EmptyState
+                title="No appointments yet"
+                description={
+                    nameField === "doctorName"
+                        ? "Book your first appointment to see it here."
+                        : "You have no upcoming or past appointments."
+                }
+            />
+        );
+    }
 
     const year = cursor.getFullYear();
     const month = cursor.getMonth();
@@ -112,7 +125,7 @@ export default function AppointmentCalendar({ appointments, nameField, renderExt
                             <path d="m15 18-6-6 6-6" />
                         </svg>
                     </button>
-                    <h3 className="min-w-[140px] text-center text-sm font-semibold text-gray-900">
+                    <h3 className="min-w-140px text-center text-sm font-semibold text-gray-900">
                         {MONTH_NAMES[month]} {year}
                     </h3>
                     <button
@@ -151,7 +164,7 @@ export default function AppointmentCalendar({ appointments, nameField, renderExt
                         <button
                             key={i}
                             onClick={() => setSelectedDate(date)}
-                            className={`relative flex min-h-[64px] flex-col items-start gap-1 border-b border-r border-gray-50 p-1.5 text-left transition sm:min-h-[84px] sm:p-2 ${
+                            className={`relative flex min-h-64px flex-col items-start gap-1 border-b border-r border-gray-50 p-1.5 text-left transition sm:min-h-84px sm:p-2 ${
                                 inMonth ? "bg-white hover:bg-gray-50" : "bg-gray-50/40 hover:bg-gray-50"
                             } ${isSelected ? "ring-2 ring-inset ring-emerald-500" : ""}`}
                         >

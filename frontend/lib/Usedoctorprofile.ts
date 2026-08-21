@@ -51,7 +51,7 @@ export function useDoctorProfile(email: string | null) {
         }
     }, [userId, refetch]);
 
-    // Still loading if the user lookup hasn't finished yet, or the doctor lookup is in flight
+    
     const loading = userLoading || (!!userId && doctorLoading);
 
     async function updateProfile(

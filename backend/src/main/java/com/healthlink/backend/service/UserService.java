@@ -1,5 +1,7 @@
 package com.healthlink.backend.service;
 
+import com.healthlink.backend.exception.DuplicateEmailException;
+import com.healthlink.backend.exception.ResourceNotFoundException;
 import com.healthlink.backend.model.User;
 import com.healthlink.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,8 +21,18 @@ public class UserService {
 
     public User registerUser(User user) {
         if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("Email already in use");
+            throw new DuplicateEmailException("Email already in use");
         }
+        user.setRole("PATIENT");
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        return userRepository.save(user);
+    }
+
+    public User registerAsRole(User user, String role) {
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new DuplicateEmailException("Email already in use");
+        }
+        user.setRole(role);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
     }
@@ -43,7 +55,7 @@ public class UserService {
             existingUser.setPhone(updatedUser.getPhone());
             existingUser.setProfileImage(updatedUser.getProfileImage());
             return userRepository.save(existingUser);
-        }).orElseThrow(() -> new RuntimeException("User not found"));
+        }).orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     public void deleteUser(String id) {

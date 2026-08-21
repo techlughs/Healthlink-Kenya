@@ -16,6 +16,7 @@ export interface Appointment {
     notes?: string;
     fee: number;
     paid: boolean;
+    refunded?: boolean;
 }
 
 export function useAppointments(patientId: string | null) {

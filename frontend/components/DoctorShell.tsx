@@ -2,14 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
 import { HomeIcon, CalendarIcon, UserIcon } from "@/components/DashboardShell";
 import type { AuthInfo } from "@/components/DashboardShell";
 import { useDoctorProfile } from "@/lib/Usedoctorprofile";
-import { useDoctorAppointments } from "@/lib/Usedoctorappointments";
-import { formatApptDateTime } from "@/lib/useAppointments";
+import { performLogout } from "@/lib/api";
+import { useNotifications, formatNotificationTime } from "@/lib/useNotifications";
 
 const display = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"] });
 
@@ -46,6 +46,13 @@ const XIcon = (p: { className?: string }) => (
         <path d="M18 6 6 18M6 6l12 12" />
     </IconBase>
 );
+const AlertTriangleIcon = (p: { className?: string }) => (
+    <IconBase className={p.className}>
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <line x1="12" y1="9" x2="12" y2="13" />
+        <line x1="12" y1="17" x2="12.01" y2="17" />
+    </IconBase>
+);
 
 const BarChartIcon = (p: { className?: string }) => (
     <IconBase className={p.className}>
@@ -70,23 +77,25 @@ interface DoctorShellProps {
 }
 
 export default function DoctorShell({ auth, title, children }: DoctorShellProps) {
-    const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const { doctor } = useDoctorProfile(auth.email);
-    const { appointments } = useDoctorAppointments(doctor?.id ?? null);
+    const { doctor, loading: doctorLoading, error: doctorError } = useDoctorProfile(auth.email);
 
-    const pending = appointments
-        .filter((a) => a.status?.toUpperCase() === "PENDING")
-        .sort(
-            (a, b) =>
-                new Date(a.appointmentDateTime).getTime() -
-                new Date(b.appointmentDateTime).getTime()
-        );
+    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
     const [notifOpen, setNotifOpen] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
+
+    function toggleNotifications() {
+        setNotifOpen((wasOpen) => {
+            const willOpen = !wasOpen;
+            if (willOpen && unreadCount > 0) {
+                markAllAsRead();
+            }
+            return willOpen;
+        });
+    }
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
@@ -98,15 +107,15 @@ export default function DoctorShell({ auth, title, children }: DoctorShellProps)
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    function handleLogout() {
-        localStorage.removeItem("token");
-        localStorage.removeItem("email");
-        localStorage.removeItem("role");
-        router.push("/login");
+    async function handleLogout() {
+        await performLogout();
     }
 
-    const firstName = (doctor?.fullName || auth.email.split("@")[0]).replace(/^Dr\.?\s*/i, "");
+    const firstName = doctor
+        ? doctor.fullName.replace(/^Dr\.?\s*/i, "")
+        : auth.email.split("@")[0];
     const initial = firstName.charAt(0).toUpperCase();
+    const displayName = doctorLoading ? "Loading…" : doctor?.fullName || firstName;
 
     return (
         <div className="flex min-h-screen bg-gray-50">
@@ -199,11 +208,17 @@ export default function DoctorShell({ auth, title, children }: DoctorShellProps)
                         </span>
                         <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-white">
-                                {doctor?.fullName || firstName}
+                                {displayName}
                             </p>
                             <p className="truncate text-xs text-teal-200">{auth.email}</p>
                         </div>
                     </div>
+                    {doctorError && (
+                        <p className="mt-1 flex items-center gap-1.5 px-2 text-xs text-amber-300">
+                            <AlertTriangleIcon className="h-3.5 w-3.5 shrink-0" />
+                            {doctorError}
+                        </p>
+                    )}
                     <button
                         onClick={handleLogout}
                         className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm font-medium text-teal-200 transition hover:bg-teal-800/60 hover:text-white"
@@ -231,13 +246,15 @@ export default function DoctorShell({ auth, title, children }: DoctorShellProps)
                     <div className="flex flex-1 items-center justify-end gap-3">
                         <div className="relative" ref={notifRef}>
                             <button
-                                onClick={() => setNotifOpen((v) => !v)}
+                                onClick={toggleNotifications}
                                 className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-50"
                                 aria-label="Notifications"
                             >
                                 <BellIcon className="h-5 w-5" />
-                                {pending.length > 0 && (
-                                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold leading-none text-white">
+                                        {unreadCount > 9 ? "9+" : unreadCount}
+                                    </span>
                                 )}
                             </button>
 
@@ -245,30 +262,35 @@ export default function DoctorShell({ auth, title, children }: DoctorShellProps)
                                 <div className="pop-in absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-100 bg-white shadow-lg">
                                     <div className="border-b border-gray-100 px-4 py-3">
                                         <p className="text-sm font-semibold text-gray-900">
-                                            Pending Requests
+                                            Notifications
                                         </p>
                                     </div>
                                     <div className="max-h-80 overflow-y-auto">
-                                        {pending.length === 0 ? (
+                                        {notifications.length === 0 ? (
                                             <p className="px-4 py-6 text-center text-sm text-gray-400">
-                                                No pending requests
+                                                No notifications yet
                                             </p>
                                         ) : (
-                                            pending.slice(0, 5).map((a) => (
-                                                <div
-                                                    key={a.id}
-                                                    className="border-b border-gray-50 px-4 py-3 last:border-b-0 hover:bg-gray-50"
+                                            notifications.slice(0, 8).map((n) => (
+                                                <button
+                                                    key={n.id}
+                                                    onClick={() => !n.read && markAsRead(n.id)}
+                                                    className={`block w-full border-b border-gray-50 px-4 py-3 text-left last:border-b-0 hover:bg-gray-50 ${
+                                                        n.read ? "" : "bg-amber-50/40"
+                                                    }`}
                                                 >
-                                                    <p className="text-sm font-medium text-gray-900">
-                                                        {a.patientName}
-                                                    </p>
-                                                    <p className="mt-0.5 text-xs text-gray-500">
-                                                        {formatApptDateTime(a.appointmentDateTime)}
-                                                    </p>
-                                                    <span className="mt-1.5 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                                                        Awaiting confirmation
-                                                    </span>
-                                                </div>
+                                                    <div className="flex items-start gap-2">
+                                                        {!n.read && (
+                                                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm text-gray-900">{n.message}</p>
+                                                            <p className="mt-0.5 text-xs text-gray-400">
+                                                                {formatNotificationTime(n.createdAt)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </button>
                                             ))
                                         )}
                                     </div>

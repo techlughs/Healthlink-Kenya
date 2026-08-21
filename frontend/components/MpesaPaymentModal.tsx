@@ -59,8 +59,6 @@ export default function MpesaPaymentModal({
                 phoneNumber: trimmed,
             });
 
-            // Simulate the real-world delay of the patient picking up their
-            // phone and entering their M-Pesa PIN before Safaricom confirms.
             await new Promise((resolve) => setTimeout(resolve, 2600));
 
             const confirmed = await confirmPayment(payment.id);
@@ -106,8 +104,30 @@ export default function MpesaPaymentModal({
                 .pulse-ring {
                     animation: pulseRing 1.6s ease-out infinite;
                 }
+
+                @keyframes printFeed {
+                    from { max-height: 0; opacity: 0; transform: translateY(-6px); }
+                    60% { opacity: 1; }
+                    to { max-height: 220px; opacity: 1; transform: translateY(0); }
+                }
+                .receipt-print {
+                    overflow: hidden;
+                    max-height: 0;
+                    animation: printFeed 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.65s forwards;
+                }
+                @keyframes tornEdgeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                .torn-edge {
+                    opacity: 0;
+                    animation: tornEdgeIn 0.2s ease-out 1.3s forwards;
+                }
+
                 @media (prefers-reduced-motion: reduce) {
                     .draw-check, .circle-in, .pulse-ring { animation: none; }
+                    .receipt-print { animation: none; max-height: none; opacity: 1; }
+                    .torn-edge { animation: none; opacity: 1; }
                 }
             `}</style>
 
@@ -130,7 +150,7 @@ export default function MpesaPaymentModal({
                         <div className="mt-4 rounded-lg bg-gray-50 px-4 py-3">
                             <p className="text-xs text-gray-500">Amount to pay</p>
                             <p className="text-2xl font-semibold text-gray-900">KSh {amount.toLocaleString()}</p>
-                            <p className="mt-0.5 text-xs text-gray-500">to {doctorName}</p>
+                            <p className="mt-0.5 text-xs text-gray-500">to HealthLink Kenya</p>
                         </div>
 
                         <form onSubmit={handleSend} className="mt-4 space-y-1.5">
@@ -195,20 +215,37 @@ export default function MpesaPaymentModal({
                             </svg>
                         </div>
                         <p className="mt-4 text-base font-semibold text-gray-900">Payment Successful</p>
-                        <div className="mt-4 w-full space-y-2 rounded-lg bg-gray-50 px-4 py-3 text-left text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Amount</span>
-                                <span className="font-medium text-gray-900">KSh {amount.toLocaleString()}</span>
+
+                        <div className="receipt-print relative mt-4 w-full">
+                            <div className="w-full space-y-2 rounded-t-lg bg-gray-50 px-4 py-3 text-left text-sm">
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Amount</span>
+                                    <span className="font-medium text-gray-900">KSh {amount.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Paid to</span>
+                                    <span className="font-medium text-gray-900">HealthLink</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="text-gray-500">Receipt No.</span>
+                                    <span className="font-mono font-medium text-gray-900">{receipt}</span>
+                                </div>
                             </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Paid to</span>
-                                <span className="font-medium text-gray-900">{doctorName}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Receipt No.</span>
-                                <span className="font-mono font-medium text-gray-900">{receipt}</span>
-                            </div>
+                            <div
+                                className="torn-edge h-3 w-full bg-gray-50"
+                                style={{
+                                    maskImage:
+                                        "radial-gradient(circle at 6px 0, transparent 6px, black 6.5px)",
+                                    maskSize: "12px 12px",
+                                    maskRepeat: "repeat-x",
+                                    WebkitMaskImage:
+                                        "radial-gradient(circle at 6px 0, transparent 6px, black 6.5px)",
+                                    WebkitMaskSize: "12px 12px",
+                                    WebkitMaskRepeat: "repeat-x",
+                                }}
+                            />
                         </div>
+
                         <button
                             onClick={handleDone}
                             className="mt-5 w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"

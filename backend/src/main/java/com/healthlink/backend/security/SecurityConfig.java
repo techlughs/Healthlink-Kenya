@@ -54,11 +54,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/register", "/api/auth/**").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/doctors").hasRole("DOCTOR")
                         .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/doctors/**").hasRole("DOCTOR")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/doctors/**").hasRole("DOCTOR")
-                        .requestMatchers("/api/users").denyAll() // full user list — nothing in the frontend needs this
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/users").denyAll() 
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -84,6 +86,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(java.util.List.of("http://localhost:3000"));
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(java.util.List.of("*"));
+        configuration.setAllowCredentials(true);
 
         org.springframework.web.cors.UrlBasedCorsConfigurationSource source =
                 new org.springframework.web.cors.UrlBasedCorsConfigurationSource();

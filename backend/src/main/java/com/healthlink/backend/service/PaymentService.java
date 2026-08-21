@@ -2,10 +2,12 @@ package com.healthlink.backend.service;
 
 import com.healthlink.backend.exception.ResourceNotFoundException;
 import com.healthlink.backend.model.Appointment;
+import com.healthlink.backend.model.Doctor;
 import com.healthlink.backend.model.Payment;
 import com.healthlink.backend.repository.AppointmentRepository;
 import com.healthlink.backend.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -15,45 +17,48 @@ import java.util.UUID;
 
 @Service
 public class PaymentService {
-
     @Autowired
     private PaymentRepository paymentRepository;
-
     @Autowired
     private AppointmentRepository appointmentRepository;
+    @Autowired
+    private NotificationService notificationService;
+    @Autowired
+    private DoctorService doctorService;
 
     private static final String RECEIPT_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private final Random random = new Random();
 
-    /**
-     * Simulates the first leg of an M-Pesa STK Push: the request has been "sent"
-     * to the patient's phone and is now awaiting PIN entry. In a real Daraja
-     * integration this would call Safaricom's API and return a CheckoutRequestID;
-     * here we generate a realistic-looking one ourselves.
-     */
-    public Payment initiateStkPush(Payment request) {
-        request.setCheckoutRequestId("ws_CO_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-        request.setStatus("PENDING");
-        request.setCreatedAt(LocalDateTime.now());
-        return paymentRepository.save(request);
+    public Payment initiateStkPush(Payment request, String requestingEmail) {
+        Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        if (!appointment.getPatientId().equals(requestingEmail)) {
+            throw new AccessDeniedException("Cannot pay for another patient's appointment");
+        }
+        Payment payment = new Payment();
+        payment.setAppointmentId(appointment.getId());
+        payment.setPatientId(appointment.getPatientId());
+        payment.setPatientName(appointment.getPatientName());
+        payment.setDoctorId(appointment.getDoctorId());
+        payment.setDoctorName(appointment.getDoctorName());
+        payment.setAmount(appointment.getFee());
+        payment.setPhoneNumber(request.getPhoneNumber());
+        payment.setCheckoutRequestId("ws_CO_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
+        payment.setStatus("PENDING");
+        payment.setCreatedAt(LocalDateTime.now());
+        return paymentRepository.save(payment);
     }
 
     public Optional<Payment> getPaymentById(String paymentId) {
         return paymentRepository.findById(paymentId);
     }
 
-    /**
-     * Simulates the Safaricom callback that arrives once the patient enters
-     * their PIN: marks the payment as successful, generates an M-Pesa-style
-     * receipt number, and flags the linked appointment as paid.
-     *
-     * Ownership is verified by the caller (PaymentController) before this
-     * runs — this method assumes the paymentId has already been authorized.
-     */
-    public Payment confirmPayment(String paymentId) {
+    public Payment confirmPayment(String paymentId, String requestingEmail) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-
+        if (!payment.getPatientId().equals(requestingEmail)) {
+            throw new AccessDeniedException("Not authorized to confirm this payment");
+        }
         payment.setStatus("SUCCESS");
         payment.setMpesaReceiptNumber(generateReceiptNumber());
         payment.setCompletedAt(LocalDateTime.now());
@@ -64,7 +69,30 @@ public class PaymentService {
             appointmentRepository.save(appointment);
         });
 
+        String doctorEmail = doctorService.getDoctorById(saved.getDoctorId())
+                .map(Doctor::getEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Doctor not found"));
+
+        notificationService.notify(
+                doctorEmail,
+                "PAYMENT_RECEIVED",
+                "Payment received for an appointment.",
+                saved.getAppointmentId()
+        );
+
         return saved;
+    }
+
+
+    public Optional<Payment> markRefunded(String appointmentId) {
+        return paymentRepository.findByAppointmentId(appointmentId).map(payment -> {
+            if ("SUCCESS".equals(payment.getStatus())) {
+                payment.setStatus("REFUNDED");
+                payment.setRefundedAt(LocalDateTime.now());
+                return paymentRepository.save(payment);
+            }
+            return payment;
+        });
     }
 
     public Optional<Payment> getPaymentByAppointmentId(String appointmentId) {

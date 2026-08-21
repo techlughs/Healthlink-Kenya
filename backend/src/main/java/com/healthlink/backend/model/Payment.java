@@ -34,10 +34,12 @@ public class Payment {
 
     private String mpesaReceiptNumber;
 
-    private String status; // PENDING, SUCCESS, FAILED
+    private String status; // PENDING, SUCCESS, FAILED, REFUNDED
 
     private LocalDateTime createdAt;
 
     private LocalDateTime completedAt;
+
+    private LocalDateTime refundedAt;
 
 }

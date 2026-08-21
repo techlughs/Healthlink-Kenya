@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { Space_Grotesk } from "next/font/google";
-import { useAppointments, isUpcoming, formatApptDateTime } from "@/lib/useAppointments";
+import { useNotifications, formatNotificationTime } from "@/lib/useNotifications";
 
 const display = Space_Grotesk({ subsets: ["latin"], weight: ["500", "600", "700"] });
 
@@ -75,7 +75,6 @@ const XIcon = (p: { className?: string }) => (
         <path d="M18 6 6 18M6 6l12 12" />
     </IconBase>
 );
-
 const PATIENT_NAV = [
     { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
     { label: "Find a Doctor", href: "/doctors", icon: SearchIcon },
@@ -83,12 +82,6 @@ const PATIENT_NAV = [
     { label: "My Profile", href: "/profile", icon: UserIcon },
 ];
 
-/**
- * Guards a page behind login, and optionally behind a specific role.
- * - No token -> redirect to /login
- * - Token present but role doesn't match expectedRole -> redirect to that role's home route
- * - Otherwise returns the auth info
- */
 export function useAuthGuard(expectedRole?: string): AuthInfo | null {
     const router = useRouter();
     const [auth, setAuth] = useState<AuthInfo | null>(null);
@@ -158,17 +151,20 @@ export default function DashboardShell({
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const { appointments } = useAppointments(auth.email);
-    const upcoming = appointments
-        .filter(isUpcoming)
-        .sort(
-            (a, b) =>
-                new Date(a.appointmentDateTime).getTime() -
-                new Date(b.appointmentDateTime).getTime()
-        );
+    const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
     const [notifOpen, setNotifOpen] = useState(false);
     const notifRef = useRef<HTMLDivElement>(null);
+
+    function toggleNotifications() {
+        setNotifOpen((wasOpen) => {
+            const willOpen = !wasOpen;
+            if (willOpen && unreadCount > 0) {
+                markAllAsRead();
+            }
+            return willOpen;
+        });
+    }
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
@@ -206,7 +202,7 @@ export default function DashboardShell({
             >
                 <div className="flex items-center justify-between px-5 py-5">
                     <div className="flex items-center gap-2.5">
-                        <span className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-950 text-emerald-400">
+                        <span className="relative flex h-9w-9 items-center justify-center rounded-lg bg-emerald-950 text-emerald-400">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 24 24"
@@ -262,8 +258,8 @@ export default function DashboardShell({
                             {initial}
                         </span>
                         <div className="min-w-0">
-                            <p className="truncate text-sm font-medium capitalize text-white">{firstName}</p>
-                            <p className="truncate text-xs text-teal-200">{auth.email}</p>
+                            <p className="truncate text-smfont-medium capitalize text-white">{firstName}</p>
+                            <p className="truncate text-xstext-teal-200">{auth.email}</p>
                         </div>
                     </div>
                     <button
@@ -297,19 +293,21 @@ export default function DashboardShell({
                                 type="text"
                                 placeholder={searchPlaceholder}
                                 onChange={(e) => onSearchChange?.(e.target.value)}
-                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-700 placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-smtext-gray-700 placeholder:text-gray-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                             />
                         </label>
 
                         <div className="relative" ref={notifRef}>
                             <button
-                                onClick={() => setNotifOpen((v) => !v)}
+                                onClick={toggleNotifications}
                                 className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-50"
                                 aria-label="Notifications"
                             >
                                 <BellIcon className="h-5 w-5" />
-                                {upcoming.length > 0 && (
-                                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                {unreadCount > 0 && (
+                                    <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold leading-none text-white">
+                                        {unreadCount > 9 ? "9+" : unreadCount}
+                                    </span>
                                 )}
                             </button>
 
@@ -319,33 +317,38 @@ export default function DashboardShell({
                                         <p className="text-sm font-semibold text-gray-900">Notifications</p>
                                     </div>
                                     <div className="max-h-80 overflow-y-auto">
-                                        {upcoming.length === 0 ? (
+                                        {notifications.length === 0 ? (
                                             <p className="px-4 py-6 text-center text-sm text-gray-400">
-                                                No upcoming appointments
+                                                No notifications yet
                                             </p>
                                         ) : (
-                                            upcoming.slice(0, 5).map((a) => (
-                                                <div
-                                                    key={a.id}
-                                                    className="border-b border-gray-50 px-4 py-3 last:border-b-0 hover:bg-gray-50"
+                                            notifications.slice(0, 8).map((n) => (
+                                                <button
+                                                    key={n.id}
+                                                    onClick={() => !n.read && markAsRead(n.id)}
+                                                    className={`block w-full border-b border-gray-50 px-4 py-3 text-left last:border-b-0 hover:bg-gray-50 ${
+                                                        n.read ? "" : "bg-emerald-50/40"
+                                                    }`}
                                                 >
-                                                    <p className="text-sm font-medium text-gray-900">
-                                                        {a.doctorName}
-                                                    </p>
-                                                    <p className="mt-0.5 text-xs text-gray-500">
-                                                        {formatApptDateTime(a.appointmentDateTime)}
-                                                    </p>
-                                                    <span className="mt-1.5 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                                                        {a.status}
-                                                    </span>
-                                                </div>
+                                                    <div className="flex items-start gap-2">
+                                                        {!n.read && (
+                                                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                                                        )}
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm text-gray-900">{n.message}</p>
+                                                            <p className="mt-0.5 text-xs text-gray-400">
+                                                                {formatNotificationTime(n.createdAt)}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </button>
                                             ))
                                         )}
                                     </div>
                                     <Link
                                         href="/appointments"
                                         onClick={() => setNotifOpen(false)}
-                                        className="block px-4 py-2.5 text-center text-xs font-medium text-emerald-600 hover:bg-gray-50"
+                                        className="block px-4 py-2.5 text-center text-xs font-medium text-emerald-600hover:bg-gray-50"
                                     >
                                         View all appointments
                                     </Link>

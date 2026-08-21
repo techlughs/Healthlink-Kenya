@@ -46,8 +46,12 @@ describe("api client", () => {
         expect(config.headers.Authorization).toBeUndefined();
     });
 
-    it("logs the user out when a 401 arrives with no refresh token available", async () => {
+    it("logs the user out when the refresh call itself fails", async () => {
         localStorage.setItem("token", "stale-token");
+
+        const axios = (await import("axios")).default;
+        (axios.post as jest.Mock).mockRejectedValueOnce(new Error("refresh failed"));
+
         const api = (await import("./api")).default;
         const responseErrorHandler = (api.interceptors.response.use as jest.Mock).mock.calls[0][1];
 
@@ -56,13 +60,11 @@ describe("api client", () => {
             config: { url: "/appointments", headers: {}, _retry: false } as MockAxiosConfig,
         };
 
-        await expect(responseErrorHandler(error)).rejects.toEqual(error);
+        await expect(responseErrorHandler(error)).rejects.toBeTruthy();
         expect(localStorage.getItem("token")).toBeNull();
     });
 
-    it("refreshes the token and retries the original request on a 401", async () => {
-        localStorage.setItem("refreshToken", "refresh-abc");
-
+    it("refreshes the token via cookie and retries the original request on a 401", async () => {
         const axios = (await import("axios")).default;
         (axios.post as jest.Mock).mockResolvedValueOnce({ data: { token: "new-token" } });
 
@@ -77,7 +79,8 @@ describe("api client", () => {
 
         expect(axios.post).toHaveBeenCalledWith(
             "http://localhost:8080/api/auth/refresh",
-            { refreshToken: "refresh-abc" }
+            {},
+            { withCredentials: true }
         );
         expect(localStorage.getItem("token")).toBe("new-token");
         expect(originalRequest.headers.Authorization).toBe("Bearer new-token");

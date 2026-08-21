@@ -29,9 +29,9 @@ export default function DoctorsPage() {
 
         async function loadDoctors() {
             try {
-                const response = await api.get<Doctor[]>("/doctors");
+                const response = await api.get<{ content: Doctor[] }>("/doctors");
                 if (!cancelled) {
-                    setDoctors(response.data);
+                    setDoctors(response.data.content);
                 }
             } catch {
                 // Deliberately generic: never surface raw backend/server errors
@@ -81,11 +81,6 @@ export default function DoctorsPage() {
         return <DashboardSkeleton />;
     }
 
-    // The backend links appointments to a real User document ID, not just an
-    // email. For now we don't yet store the logged-in user's Mongo ID on the
-    // frontend (only email/role), so we pass the email as a stand-in patient
-    // identifier. This gets tightened up once the /api/auth/login response
-    // includes the actual user ID.
     const patientId = auth.email;
     const patientName = auth.email.split("@")[0];
 

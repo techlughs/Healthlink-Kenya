@@ -1,5 +1,6 @@
 package com.healthlink.backend.controller;
 
+import com.healthlink.backend.exception.ResourceNotFoundException;
 import com.healthlink.backend.model.User;
 import com.healthlink.backend.service.UserService;
 import com.healthlink.backend.security.SecurityUtils;
@@ -46,7 +47,7 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable String id, @Valid @RequestBody User user) {
         User existing = userService.getUserById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (!existing.getEmail().equals(SecurityUtils.getCurrentEmail())) {
             throw new AccessDeniedException("Not authorized");
         }
@@ -56,7 +57,7 @@ public class UserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable String id) {
         User existing = userService.getUserById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         if (!existing.getEmail().equals(SecurityUtils.getCurrentEmail())) {
             throw new AccessDeniedException("Not authorized");
         }

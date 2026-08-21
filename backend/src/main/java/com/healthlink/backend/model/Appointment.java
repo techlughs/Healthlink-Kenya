@@ -46,4 +46,6 @@ public class Appointment {
     private Double fee;
 
     private Boolean paid;
+
+    private Boolean refunded;
 }

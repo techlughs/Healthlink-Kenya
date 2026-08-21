@@ -35,8 +35,7 @@ public class JwtUtil {
     }
 
     public String generateRefreshToken(String email) {
-        // Deliberately minimal claims — a refresh token should carry as little
-        // as possible, since it lives far longer than an access token.
+        
         return Jwts.builder()
                 .setSubject(email)
                 .claim("type", "refresh")

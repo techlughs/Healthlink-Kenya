@@ -8,6 +8,9 @@ import { usePatientReviews } from "@/lib/useReviews";
 import { useUser } from "@/lib/useUser";
 import AppointmentCalendar from "@/components/AppointmentCalender";
 import MpesaPaymentModal from "@/components/MpesaPaymentModal";
+import { CalendarSkeleton, ListSkeleton } from "@/components/LoadingSkeleton";
+import ErrorState from "@/components/ErrorState";
+import EmptyState from "@/components/EmptyState";
 import api from "@/lib/api";
 
 type FilterTab = "all" | "upcoming" | "past" | "cancelled";
@@ -186,7 +189,11 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
 
             {view === "calendar" && (
                 <div className="fade-in-up mt-5" style={{ animationDelay: "60ms" }}>
-                    <AppointmentCalendar appointments={appointments} nameField="doctorName" />
+                    {loading && <CalendarSkeleton />}
+                    {!loading && error && <ErrorState message={error} onRetry={refetch} />}
+                    {!loading && !error && (
+                        <AppointmentCalendar appointments={appointments} nameField="doctorName" />
+                    )}
                 </div>
             )}
 
@@ -215,27 +222,19 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
             )}
 
             <div className="mt-5 space-y-3">
-                {loading && (
-                    <div className="space-y-3">
-                        {[0, 1, 2].map((i) => (
-                            <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />
-                        ))}
-                    </div>
-                )}
+                {loading && <ListSkeleton rows={3} />}
 
-                {!loading && error && (
-                    <p className="rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-600">{error}</p>
-                )}
+                {!loading && error && <ErrorState message={error} onRetry={refetch} />}
 
                 {!loading && !error && filtered.length === 0 && (
-                    <div className="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center">
-                        <p className="text-sm font-medium text-gray-900">No appointments here yet</p>
-                        <p className="mt-1 text-sm text-gray-500">
-                            {filter === "all"
+                    <EmptyState
+                        title="No appointments here yet"
+                        description={
+                            filter === "all"
                                 ? "Book your first visit to get started."
-                                : `You don't have any ${filter} appointments.`}
-                        </p>
-                    </div>
+                                : `You don't have any ${filter} appointments.`
+                        }
+                    />
                 )}
 
                 {!loading &&
@@ -289,7 +288,9 @@ function AppointmentsContent({ auth }: { auth: { email: string; role: string } }
                                             <span className="block text-sm font-semibold text-gray-900">
                                                 KSh {a.fee?.toLocaleString()}
                                             </span>
-                                            {a.paid ? (
+                                            {a.refunded ? (
+                                                <span className="text-[11px] font-medium text-gray-500">↩ Refunded</span>
+                                            ) : a.paid ? (
                                                 <span className="text-[11px] font-medium text-emerald-600">✓ Paid</span>
                                             ) : (
                                                 !cancelled && (

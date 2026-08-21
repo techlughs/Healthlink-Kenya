@@ -88,20 +88,37 @@ public class AppointmentController {
     @PutMapping("/{id}/status")
     public ResponseEntity<Appointment> updateAppointmentStatus(
             @PathVariable String id,
-            @RequestParam String status) {
-        assertOwnerOrDoctor(appointmentService.getAppointmentById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found")));
-        return ResponseEntity.ok(appointmentService.updateAppointmentStatus(id, status));
+            @RequestParam String status,
+            HttpServletRequest request) {
+        Appointment appointment = appointmentService.getAppointmentById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        assertIsOwningDoctor(appointment.getDoctorId());
+        Appointment updated = appointmentService.updateAppointmentStatus(id, status);
+        auditService.log(
+                SecurityUtils.getCurrentEmail(),
+                "APPOINTMENT_STATUS_UPDATED",
+                "Set appointment " + id + " to status " + status,
+                getClientIp(request)
+        );
+        return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/notes")
     public ResponseEntity<Appointment> addDoctorNotes(
             @PathVariable String id,
-            @RequestParam String notes) {
-        if (!SecurityUtils.hasRole("DOCTOR")) {
-            throw new AccessDeniedException("Only doctors can add notes");
-        }
-        return ResponseEntity.ok(appointmentService.addDoctorNotes(id, notes));
+            @RequestParam String notes,
+            HttpServletRequest request) {
+        Appointment appointment = appointmentService.getAppointmentById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found"));
+        assertIsOwningDoctor(appointment.getDoctorId());
+        Appointment updated = appointmentService.addDoctorNotes(id, notes);
+        auditService.log(
+                SecurityUtils.getCurrentEmail(),
+                "APPOINTMENT_NOTES_UPDATED",
+                "Added notes to appointment " + id,
+                getClientIp(request)
+        );
+        return ResponseEntity.ok(updated);
     }
 
     @PutMapping("/{id}/cancel")

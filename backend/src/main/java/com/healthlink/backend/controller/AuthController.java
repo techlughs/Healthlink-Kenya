@@ -5,7 +5,10 @@ import com.healthlink.backend.security.LoginRateLimiter;
 import com.healthlink.backend.service.AuditService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -14,6 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.Duration;
 import java.util.Map;
 
 @RestController
@@ -34,6 +39,9 @@ public class AuthController {
 
     @Autowired
     private AuditService auditService;
+
+    @Value("${COOKIE_SECURE:false}")
+    private boolean cookieSecure;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(
@@ -67,22 +75,25 @@ public class AuthController {
 
             auditService.log(email, "LOGIN_SUCCESS", "Logged in as " + role, ip);
 
-            return ResponseEntity.ok(Map.of(
-                    "token", accessToken,
-                    "refreshToken", refreshToken,
-                    "email", userDetails.getUsername(),
-                    "role", role
-            ));
+            ResponseCookie refreshCookie = buildRefreshCookie(refreshToken, Duration.ofDays(7));
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
+                    .body(Map.of(
+                            "token", accessToken,
+                            "email", userDetails.getUsername(),
+                            "role", role
+                    ));
         } catch (BadCredentialsException ex) {
             rateLimiter.recordFailure(email);
             auditService.log(email, "LOGIN_FAILURE", "Invalid credentials", ip);
-            throw ex; 
+            throw ex;
         }
     }
 
     @PostMapping("/refresh")
     public ResponseEntity<Map<String, String>> refresh(
-            @RequestBody Map<String, String> body,
+            @CookieValue(name = "refreshToken", required = false) String refreshToken,
             HttpServletRequest request) {
         String ip = getClientIp(request);
 
@@ -90,8 +101,6 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Too many refresh attempts. Try again in 15 minutes."));
         }
-
-        String refreshToken = body.get("refreshToken");
 
         if (refreshToken == null || !jwtUtil.isTokenValid(refreshToken) || !jwtUtil.isRefreshToken(refreshToken)) {
             rateLimiter.recordFailure(ip);
@@ -115,6 +124,26 @@ public class AuthController {
                 "email", email,
                 "role", role
         ));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        
+        ResponseCookie deleteCookie = buildRefreshCookie("", Duration.ZERO);
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                .build();
+    }
+
+    private ResponseCookie buildRefreshCookie(String value, Duration maxAge) {
+        return ResponseCookie.from("refreshToken", value)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite("Strict")
+                .path("/api/auth")
+                .maxAge(maxAge)
+                .build();
     }
 
     private String getClientIp(HttpServletRequest request) {

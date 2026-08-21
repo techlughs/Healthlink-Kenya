@@ -141,7 +141,17 @@ function DoctorAppointmentsContent({ auth }: { auth: { email: string; role: stri
 
             {view === "calendar" && (
                 <div className="fade-in-up mt-5" style={{ animationDelay: "60ms" }}>
-                    <AppointmentCalendar appointments={appointments} nameField="patientName" />
+                    {loading && (
+                        <div className="h-96 animate-pulse rounded-xl bg-gray-100" />
+                    )}
+                    {!loading && error && (
+                        <p className="rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-600">
+                            {error}
+                        </p>
+                    )}
+                    {!loading && !error && (
+                        <AppointmentCalendar appointments={appointments} nameField="patientName" />
+                    )}
                 </div>
             )}
 

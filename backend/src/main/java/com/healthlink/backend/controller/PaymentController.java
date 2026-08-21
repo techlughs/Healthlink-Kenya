@@ -27,14 +27,15 @@ public class PaymentController {
         if (!request.getPatientId().equals(email)) {
             throw new AccessDeniedException("Cannot initiate payment for another patient");
         }
-        return ResponseEntity.ok(paymentService.initiateStkPush(request));
+        return ResponseEntity.ok(paymentService.initiateStkPush(request, email));
     }
 
     @PostMapping("/{id}/confirm")
     public ResponseEntity<Payment> confirmPayment(
             @PathVariable String id,
             HttpServletRequest httpRequest) {
-        Payment confirmed = paymentService.confirmPayment(id);
+        String email = SecurityUtils.getCurrentEmail();
+        Payment confirmed = paymentService.confirmPayment(id, email);
         auditService.log(
                 confirmed.getPatientId(),
                 "PAYMENT_CONFIRMED",

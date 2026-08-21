@@ -22,7 +22,6 @@ public class DoctorController {
 
     @PostMapping
     public ResponseEntity<Doctor> addDoctor(@Valid @RequestBody Doctor doctor) {
-        
         doctor.setEmail(SecurityUtils.getCurrentEmail());
         return ResponseEntity.ok(doctorService.addDoctor(doctor));
     }
@@ -36,6 +35,9 @@ public class DoctorController {
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<Doctor> getDoctorByUserId(@PathVariable String userId) {
+        if (!SecurityUtils.isAuthenticated()) {
+            throw new AccessDeniedException("Not authorized");
+        }
         return doctorService.getDoctorByUserId(userId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

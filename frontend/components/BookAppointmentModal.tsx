@@ -39,10 +39,7 @@ export default function BookAppointmentModal({
         setSubmitting(true);
 
         try {
-            // Combine date and time into a single ISO string the backend expects
-            // (LocalDateTime on the Java side). Trusting only what the user
-            // explicitly selected via native date/time inputs — no free text
-            // is parsed as a date, which avoids malformed or malicious input.
+            
             const appointmentDateTime = `${date}T${time}:00`;
 
             await api.post("/appointments", {

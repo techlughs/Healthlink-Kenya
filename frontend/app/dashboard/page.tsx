@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuthGuard, DashboardSkeleton } from "@/components/DashboardShell";
 import DashboardShell from "@/components/DashboardShell";
 import { useAppointments, isUpcoming } from "@/lib/useAppointments";
+import api from "@/lib/api";
+import { articleExcerpt } from "@/lib/articleFormat";
 
 function getGreeting(): string {
     const hour = new Date().getHours();
@@ -35,6 +38,42 @@ function PulseLine() {
     );
 }
 
+interface Article {
+    id: string;
+    title: string;
+    content: string;
+    coverImageUrl?: string;
+    createdAt: string;
+}
+
+function useLatestArticles(limit = 3) {
+    const [articles, setArticles] = useState<Article[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        let cancelled = false;
+
+        api
+            .get("/articles")
+            .then((res) => {
+                if (!cancelled) setArticles((res.data as Article[]).slice(0, limit));
+            })
+            .catch(() => {
+                if (!cancelled) setError("Couldn't load health articles right now.");
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [limit]);
+
+    return { articles, loading, error };
+}
+
 export default function DashboardPage() {
     const auth = useAuthGuard("PATIENT");
 
@@ -52,6 +91,8 @@ function DashboardContent({ auth }: { auth: { email: string; role: string } }) {
     const { appointments } = useAppointments(auth.email);
     const upcomingCount = appointments.filter(isUpcoming).length;
     const doctorsConsulted = new Set(appointments.map((a) => a.doctorId)).size;
+
+    const { articles, loading: articlesLoading, error: articlesError } = useLatestArticles();
 
     return (
         <DashboardShell auth={auth} title="Dashboard">
@@ -143,6 +184,58 @@ function DashboardContent({ auth }: { auth: { email: string; role: string } }) {
                     <h4 className="font-semibold text-gray-900">My Profile</h4>
                     <p className="mt-1 text-sm text-gray-500">Update your personal information</p>
                 </Link>
+            </div>
+
+            <div className="mt-10 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">Health Articles</h3>
+                {articles.length > 0 && (
+                    <Link
+                        href="/articles"
+                        className="text-sm font-medium text-emerald-600 hover:underline"
+                    >
+                        View all →
+                    </Link>
+                )}
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {articlesLoading ? (
+                    <p className="text-sm text-gray-400">Loading…</p>
+                ) : articlesError ? (
+                    <p className="text-sm text-red-500">{articlesError}</p>
+                ) : articles.length === 0 ? (
+                    <p className="text-sm text-gray-400">
+                        No health articles published yet — check back soon.
+                    </p>
+                ) : (
+                    articles.map((article) => (
+                        <div
+                            key={article.id}
+                            className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm"
+                        >
+                            {article.coverImageUrl && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={article.coverImageUrl}
+                                    alt=""
+                                    className="h-32 w-full object-cover"
+                                />
+                            )}
+                            <div className="p-5">
+                                <h4 className="font-semibold text-gray-900">{article.title}</h4>
+                                <p className="mt-1 line-clamp-2 text-sm text-gray-500">
+                                    {articleExcerpt(article.content, 110)}
+                                </p>
+                                <Link
+                                    href={`/articles/${article.id}`}
+                                    className="mt-3 inline-block text-xs font-medium text-emerald-600 hover:underline"
+                                >
+                                    Read more →
+                                </Link>
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </DashboardShell>
     );
