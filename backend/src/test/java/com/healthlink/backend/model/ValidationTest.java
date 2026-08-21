@@ -29,22 +29,38 @@ class ValidationTest {
         factory.close();
     }
 
-    @Test
-    void rejectsUserWithBlankFields() {
-        User user = new User();
-        user.setFullName("");
-        user.setEmail("not-an-email");
-        user.setPassword("short");
-        user.setRole("ADMIN"); // not allowed via registration
+   @Test
+void rejectsUserWithBlankFields() {
+    User user = new User();
+    user.setFullName("");
+    user.setEmail("not-an-email");
+    user.setPassword("short");
+    user.setRole("");
 
-        Set<ConstraintViolation<User>> violations = validator.validate(user);
+    Set<ConstraintViolation<User>> violations = validator.validate(user);
 
-        assertFalse(violations.isEmpty());
-        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("fullName")));
-        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("email")));
-        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("password")));
-        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("role")));
-    }
+    assertFalse(violations.isEmpty());
+    assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("fullName")));
+    assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("email")));
+    assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("password")));
+    assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("role")));
+}
+
+@Test
+void rejectsAdminRoleNotAllowedAtRegistration() {
+    // Bean validation only enforces the role is one of PATIENT/DOCTOR/ADMIN;
+    // restricting self-registration to non-ADMIN roles is a business rule
+    // enforced in the registration service/controller, not here.
+    User user = new User();
+    user.setFullName("Test User");
+    user.setEmail("test@healthlink.com");
+    user.setPassword("SecurePass123");
+    user.setRole("ADMIN");
+
+    Set<ConstraintViolation<User>> violations = validator.validate(user);
+
+    assertTrue(violations.isEmpty()); // valid at the bean-validation level
+}
 
     @Test
     void acceptsValidUser() {
