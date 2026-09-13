@@ -1,9 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import api from "@/lib/api";
+
+function getPasswordChecks(password: string) {
+    return {
+        length: password.length >= 8,
+        upper: /[A-Z]/.test(password),
+        lower: /[a-z]/.test(password),
+        number: /[0-9]/.test(password),
+        special: /[^A-Za-z0-9]/.test(password),
+    };
+}
+
+function getPasswordScore(checks: ReturnType<typeof getPasswordChecks>) {
+    return Object.values(checks).filter(Boolean).length;
+}
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -16,10 +30,43 @@ export default function RegisterPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [passwordTouched, setPasswordTouched] = useState(false);
+
+    const passwordChecks = useMemo(() => getPasswordChecks(password), [password]);
+    const passwordScore = useMemo(() => getPasswordScore(passwordChecks), [passwordChecks]);
+
+    const isPasswordValid = passwordChecks.length && passwordChecks.upper && passwordChecks.number;
+
+    const strengthLabel =
+        password.length === 0
+            ? ""
+            : passwordScore <= 2
+            ? "Weak"
+            : passwordScore === 3
+            ? "Fair"
+            : passwordScore === 4
+            ? "Good"
+            : "Strong";
+
+    const strengthColor =
+        passwordScore <= 2
+            ? "bg-red-400"
+            : passwordScore === 3
+            ? "bg-amber-400"
+            : passwordScore === 4
+            ? "bg-emerald-400"
+            : "bg-emerald-300";
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setError("");
+        setPasswordTouched(true);
+
+        if (!isPasswordValid) {
+            setError("Please meet the minimum password requirements below.");
+            return;
+        }
+
         setLoading(true);
 
         try {
@@ -216,6 +263,7 @@ export default function RegisterPage() {
                                             type={showPassword ? "text" : "password"}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
+                                            onBlur={() => setPasswordTouched(true)}
                                             required
                                             className="w-full rounded-lg border border-white/15 bg-white/5 px-3.5 py-2.5 pr-10 text-sm text-white placeholder-white/30 outline-none transition focus:border-emerald-400/60 focus:bg-white/10 focus:ring-2 focus:ring-emerald-400/20"
                                         />
@@ -256,6 +304,67 @@ export default function RegisterPage() {
                                             )}
                                         </button>
                                     </div>
+
+                                    {password.length > 0 && (
+                                        <div className="mt-2 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex h-1 flex-1 gap-1 overflow-hidden rounded-full bg-white/10">
+                                                    {[0, 1, 2, 3, 4].map((i) => (
+                                                        <div
+                                                            key={i}
+                                                            className={`h-full flex-1 rounded-full transition-colors ${
+                                                                i < passwordScore ? strengthColor : "bg-transparent"
+                                                            }`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                                <span className="text-xs font-medium text-white/50">
+                                                    {strengthLabel}
+                                                </span>
+                                            </div>
+
+                                            <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                                                <li
+                                                    className={`flex items-center gap-1.5 ${
+                                                        passwordChecks.length ? "text-emerald-400" : "text-white/40"
+                                                    }`}
+                                                >
+                                                    <span>{passwordChecks.length ? "✓" : "•"}</span>
+                                                    8+ characters
+                                                </li>
+                                                <li
+                                                    className={`flex items-center gap-1.5 ${
+                                                        passwordChecks.upper ? "text-emerald-400" : "text-white/40"
+                                                    }`}
+                                                >
+                                                    <span>{passwordChecks.upper ? "✓" : "•"}</span>
+                                                    Uppercase letter
+                                                </li>
+                                                <li
+                                                    className={`flex items-center gap-1.5 ${
+                                                        passwordChecks.number ? "text-emerald-400" : "text-white/40"
+                                                    }`}
+                                                >
+                                                    <span>{passwordChecks.number ? "✓" : "•"}</span>
+                                                    A number
+                                                </li>
+                                                <li
+                                                    className={`flex items-center gap-1.5 ${
+                                                        passwordChecks.special ? "text-emerald-400" : "text-white/40"
+                                                    }`}
+                                                >
+                                                    <span>{passwordChecks.special ? "✓" : "•"}</span>
+                                                    Symbol (optional)
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {passwordTouched && password.length > 0 && !isPasswordValid && (
+                                        <p className="mt-1.5 text-xs text-red-300">
+                                            Password needs at least 8 characters, an uppercase letter, and a number.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <button
