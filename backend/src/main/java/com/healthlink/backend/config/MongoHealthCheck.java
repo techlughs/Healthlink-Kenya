@@ -6,7 +6,7 @@ import org.springframework.boot.health.contributor.HealthIndicator;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 
-@Component("mongo")
+@Component("mongoUsersCollection")
 public class MongoHealthCheck implements HealthIndicator {
 
     @Autowired
