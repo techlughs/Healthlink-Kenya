@@ -33,6 +33,10 @@ public class User {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
+    @Pattern(
+        regexp = "^(?=.*[A-Z])(?=.*[0-9]).*$",
+        message = "Password must contain at least one uppercase letter and one number"
+    )
     private String password;
 
     @NotBlank(message = "Role is required")
