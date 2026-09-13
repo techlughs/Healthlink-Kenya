@@ -52,9 +52,9 @@ export default function ArticleReaderPage() {
 
     return (
         <DashboardShell auth={auth} title="Health Articles">
-            <Link href="/articles" className="text-sm font-medium text-emerald-600 hover:underline">
-                ← Back to articles
-            </Link>
+             <Link href="/dashboard" className="text-sm font-medium text-emerald-600 hover:underline">
+               ← Back to Dashboard
+             </Link>
 
             {error && (
                 <p className="mt-4 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">{error}</p>
