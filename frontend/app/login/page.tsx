@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import api, { scheduleTokenRefresh } from "@/lib/api";
 
+const DEMO_PATIENT = { email: "demo.patient@healthlink.com", password: "DemoPass123" };
+const DEMO_DOCTOR = { email: "demo.doctor@healthlink.com", password: "DemoPass123" };
+
 export default function LoginPage() {
     const router = useRouter();
 
@@ -13,16 +16,15 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [demoLoading, setDemoLoading] = useState<"PATIENT" | "DOCTOR" | null>(null);
 
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
+    async function performLogin(loginEmail: string, loginPassword: string) {
         setError("");
-        setLoading(true);
 
         try {
             const response = await api.post("/auth/login", {
-                email,
-                password,
+                email: loginEmail,
+                password: loginPassword,
             });
 
             const { token, refreshToken, role } = response.data;
@@ -30,15 +32,27 @@ export default function LoginPage() {
             localStorage.setItem("token", token);
             localStorage.setItem("refreshToken", refreshToken);
             localStorage.setItem("role", role);
-            localStorage.setItem("email", email);
+            localStorage.setItem("email", loginEmail);
             scheduleTokenRefresh(token);
 
             router.push(role === "DOCTOR" ? "/doctor/dashboard" : "/dashboard");
         } catch {
             setError("Invalid email or password. Please try again.");
-        } finally {
-            setLoading(false);
         }
+    }
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setLoading(true);
+        await performLogin(email, password);
+        setLoading(false);
+    }
+
+    async function handleDemoLogin(role: "PATIENT" | "DOCTOR") {
+        setDemoLoading(role);
+        const creds = role === "PATIENT" ? DEMO_PATIENT : DEMO_DOCTOR;
+        await performLogin(creds.email, creds.password);
+        setDemoLoading(null);
     }
 
     return (
@@ -143,7 +157,32 @@ export default function LoginPage() {
                         Log in to continue to your account
                     </p>
 
-                    <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+                    <div className="mt-5 grid grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => handleDemoLogin("PATIENT")}
+                            disabled={loading || demoLoading !== null}
+                            className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-400/20 disabled:opacity-50"
+                        >
+                            {demoLoading === "PATIENT" ? "Logging in…" : "Try Demo Patient"}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => handleDemoLogin("DOCTOR")}
+                            disabled={loading || demoLoading !== null}
+                            className="rounded-lg border border-teal-400/30 bg-teal-400/10 py-2 text-xs font-semibold text-teal-300 transition hover:bg-teal-400/20 disabled:opacity-50"
+                        >
+                            {demoLoading === "DOCTOR" ? "Logging in…" : "Try Demo Doctor"}
+                        </button>
+                    </div>
+
+                    <div className="my-5 flex items-center gap-3">
+                        <div className="h-px flex-1 bg-white/10" />
+                        <span className="text-xs text-white/30">or log in</span>
+                        <div className="h-px flex-1 bg-white/10" />
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         {error && (
                             <p className="rounded-lg border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-300">
                                 {error}
@@ -218,7 +257,7 @@ export default function LoginPage() {
 
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || demoLoading !== null}
                             className="w-full rounded-lg bg-linear-to-r from-emerald-500 to-teal-400 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:shadow-emerald-500/40 disabled:opacity-50"
                         >
                             {loading ? "Logging in..." : "Log In"}
