@@ -8,6 +8,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_SEED_EMAIL: ${ADMIN_SEED_EMAIL}
       ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
     env_file:
       - .env
 
